@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextResponse } from "next/server";
 import { historyService } from "@/features/history/services/history-service";
 import { requireRider } from "@/lib/auth/permissions";
@@ -11,10 +12,7 @@ export async function GET() {
 
     const trips = await historyService.getRiderMasterHistory();
     return NextResponse.json({ success: true, data: { trips } });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch master history" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to fetch master history" });
   }
 }

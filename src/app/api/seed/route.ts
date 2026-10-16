@@ -1,11 +1,9 @@
-import { NextResponse } from "next/server";
+import { apiHttpErrorResponse } from "@/lib/api/errors";
 
 export async function POST() {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "Database reset through the application is disabled. Use the isolated development seed command instead.",
-    },
-    { status: 410 }
+  return apiHttpErrorResponse(
+    "Database reset through the application is disabled. Use the isolated development seed command instead.",
+    410,
+    { operation: "reset database" }
   );
 }

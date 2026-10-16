@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextResponse } from "next/server";
 import { tripService } from "@/features/trips/services/trip-service";
 import { requireAuth } from "@/lib/auth/permissions";
@@ -50,10 +51,7 @@ export async function GET() {
       });
     }
     return NextResponse.json({ success: true, data });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch vehicle status" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to fetch vehicle status" });
   }
 }

@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/permissions";
 import { userRepository } from "@/features/users/repositories/user-repository";
@@ -46,10 +47,7 @@ export async function GET() {
         },
       },
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Unable to load admin overview" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Unable to load admin overview" });
   }
 }

@@ -1,3 +1,4 @@
+import { apiErrorResponse, apiHttpErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/permissions";
 import { notificationRepository } from "@/features/notifications/repositories/notification-repository";
@@ -10,11 +11,8 @@ export async function GET() {
     const user = await requireAuth();
     const data = await notificationRepository.listForUser(user.id, 30);
     return NextResponse.json({ success: true, data });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch notifications" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to fetch notifications" });
   }
 }
 
@@ -29,18 +27,15 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (typeof body?.id !== "string" || body.id.length < 1 || body.id.length > 100) {
-      return NextResponse.json({ success: false, error: "A notification ID is required." }, { status: 400 });
+      return apiHttpErrorResponse("A valid notification ID is required.", 400, { operation: "update notification" });
     }
 
     const notification = await notificationRepository.markRead(body.id, user.id);
     if (!notification) {
-      return NextResponse.json({ success: false, error: "Notification not found." }, { status: 404 });
+      return apiHttpErrorResponse("Notification not found.", 404, { operation: "update notification" });
     }
     return NextResponse.json({ success: true, data: notification });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to update notification" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to update notification" });
   }
 }

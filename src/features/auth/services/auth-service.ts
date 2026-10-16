@@ -4,6 +4,7 @@ import { userService } from "@/features/users/services/user-service";
 import { SessionUser } from "@/types/domain.types";
 import { setSessionCookie, clearSessionCookie, getSession } from "@/lib/auth/session";
 import { UnauthorizedError } from "@/lib/errors/app-error";
+import { logServerError } from "@/lib/api/errors";
 
 const DEMO_ACCOUNT_EMAILS = new Set([
   "rider@lawazia.campus",
@@ -35,7 +36,10 @@ export class AuthService {
     if (!user.passwordHash) {
       throw new UnauthorizedError("Invalid email or password.");
     }
-    const match = await bcrypt.compare(password, user.passwordHash).catch(() => false);
+    const match = await bcrypt.compare(password, user.passwordHash).catch((error) => {
+      logServerError("verify stored password hash", error);
+      return false;
+    });
     if (!match) {
       throw new UnauthorizedError("Invalid email or password.");
     }

@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { tripService } from "@/features/trips/services/trip-service";
 import { requireRider } from "@/lib/auth/permissions";
@@ -13,10 +14,7 @@ export async function POST(req: NextRequest) {
 
     const vehicleState = await tripService.updateRiderLocation(validated, user);
     return NextResponse.json({ success: true, data: vehicleState });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to broadcast rider location telemetry" },
-      { status: error.statusCode || 400 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to broadcast rider location telemetry" });
   }
 }

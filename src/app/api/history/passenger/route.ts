@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { historyService } from "@/features/history/services/history-service";
 import { getSession } from "@/lib/auth/session";
@@ -32,10 +33,7 @@ export async function GET(req: NextRequest) {
         availablePassengers,
       },
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch passenger history" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to fetch passenger history" });
   }
 }

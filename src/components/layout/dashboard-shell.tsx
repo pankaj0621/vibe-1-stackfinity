@@ -10,6 +10,7 @@ import { useDashboardUser } from "@/components/layout/dashboard-user-context";
 import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { VehicleStatus } from "@/config/transit";
 import { SessionUser } from "@/types/domain.types";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 export function DashboardShell({
   children,
@@ -28,16 +29,17 @@ export function DashboardShell({
 function DashboardShellContent({ children }: { children: React.ReactNode }) {
   const currentUser = useDashboardUser();
   const [totoStatus, setTotoStatus] = useState<VehicleStatus>("free");
+  const [statusError, setStatusError] = useState("");
 
   useLiveRefresh(async () => {
     try {
-      const response = await fetch("/api/status", { cache: "no-store" });
-      const json = await response.json();
-      if (response.ok && json.success && json.data?.vehicle?.status) {
+      const json = await fetchApi("/api/status", { cache: "no-store" }, "refresh Toto status");
+      if (json.data?.vehicle?.status) {
         setTotoStatus(json.data.vehicle.status);
+        setStatusError("");
       }
-    } catch {
-      // Keep the last known status when the network is unavailable.
+    } catch (error) {
+      setStatusError(getApiErrorMessage(error, "Live Toto status could not be refreshed."));
     }
   }, 6000);
 
@@ -46,6 +48,11 @@ function DashboardShellContent({ children }: { children: React.ReactNode }) {
       <Sidebar totoStatus={totoStatus} currentUser={currentUser} />
       <div className="lg:pl-[268px]">
         <TopBar currentUser={currentUser} />
+        {statusError && (
+          <div role="status" className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm text-amber-950">
+            Live status update issue: {statusError}
+          </div>
+        )}
         <main className="min-h-[calc(100vh-140px)] pb-24 lg:pb-8">{children}</main>
         <Footer />
       </div>

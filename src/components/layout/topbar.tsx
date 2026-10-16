@@ -7,6 +7,7 @@ import { Bell, Car, CheckCheck, User as UserIcon } from "lucide-react";
 import { AVATARS } from "@/lib/utils/formatters";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { SessionUser, UserNotification } from "@/types/domain.types";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 interface TopBarProps {
   currentUser?: SessionUser | null;
@@ -54,13 +55,12 @@ export function TopBar({ currentUser }: TopBarProps) {
     if (!currentUser) return;
     if (!hasLoadedNotifications.current) setNotificationsLoading(true);
     try {
-      const response = await fetch("/api/notifications", { cache: "no-store" });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || "Could not load notifications.");
+      const json = await fetchApi<NotificationResponse>("/api/notifications", { cache: "no-store" }, "load notifications");
+      if (!json.data) throw new Error("The server returned no notification data. Refresh and try again.");
       setNotifications(json.data);
       setNotificationError("");
     } catch (error) {
-      setNotificationError(error instanceof Error ? error.message : "Could not load notifications.");
+      setNotificationError(getApiErrorMessage(error, "Could not load notifications."));
     } finally {
       setNotificationsLoading(false);
       hasLoadedNotifications.current = true;
@@ -70,6 +70,7 @@ export function TopBar({ currentUser }: TopBarProps) {
   useEffect(() => {
     if (!currentUser) {
       setNotifications({ items: [], unreadCount: 0 });
+      setNotificationError("");
       return;
     }
   }, [currentUser]);
@@ -78,30 +79,29 @@ export function TopBar({ currentUser }: TopBarProps) {
 
   const markNotificationRead = async (id: string) => {
     try {
-      const response = await fetch("/api/notifications", {
+      await fetchApi("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
-      });
-      if (response.ok) notifyLiveUpdate();
+      }, "mark notification as read");
+      notifyLiveUpdate();
       await loadNotifications();
-    } catch {
-      // Keep navigation working even if marking a notification fails.
+    } catch (error) {
+      setNotificationError(getApiErrorMessage(error, "Could not mark the notification as read."));
     }
   };
 
   const markAllRead = async () => {
     try {
-      const response = await fetch("/api/notifications", {
+      await fetchApi("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAllRead: true }),
-      });
-      if (!response.ok) throw new Error("Could not update notifications.");
+      }, "mark notifications as read");
       notifyLiveUpdate();
       await loadNotifications();
     } catch (error) {
-      setNotificationError(error instanceof Error ? error.message : "Could not update notifications.");
+      setNotificationError(getApiErrorMessage(error, "Could not update notifications."));
     }
   };
 

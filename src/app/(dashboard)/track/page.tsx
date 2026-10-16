@@ -21,6 +21,7 @@ import { fmtTime } from "@/lib/utils/formatters";
 import { formatRoadDistance, formatEta } from "@/lib/utils/routing";
 import { DEFAULT_STOP_COORDINATES, Stop } from "@/config/transit";
 import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 export default function TrackingPage() {
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
@@ -37,8 +38,8 @@ export default function TrackingPage() {
   const loadTracking = useCallback(async () => {
     try {
       const [statusRes, stopsRes] = await Promise.all([
-        fetch("/api/status", { cache: "no-store" }).then((r) => r.json()),
-        fetch("/api/stops/coordinates", { cache: "no-store" }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchApi("/api/status", { cache: "no-store" }, "load Toto status"),
+        fetchApi("/api/stops/coordinates", { cache: "no-store" }, "load transit stops"),
       ]);
       if (stopsRes.success && stopsRes.data) setStopCoordinates(stopsRes.data);
 
@@ -47,8 +48,7 @@ export default function TrackingPage() {
         setActiveTrip(trip);
 
         // Fetch protected live tracking endpoint for this trip
-        const trackRes = await fetch(`/api/trips/${trip.id}/tracking`, { cache: "no-store" });
-        const trackJson = await trackRes.json();
+        const trackJson = await fetchApi(`/api/trips/${trip.id}/tracking`, { cache: "no-store" }, "load live trip tracking");
 
         if (trackJson.success && trackJson.data) {
           setTrackingData(trackJson.data);
@@ -63,8 +63,8 @@ export default function TrackingPage() {
         setTrackingData(null);
         setError(null);
       }
-    } catch {
-      setError("Failed to communicate with live tracking service.");
+    } catch (trackingError) {
+      setError(getApiErrorMessage(trackingError, "Live tracking could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -184,7 +184,7 @@ export default function TrackingPage() {
 
                   {trackingData.roadDistanceMeters !== undefined && (
                     <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-ink-500">Remaining Distance:</span>
+                      <span className="text-ink-500">{trackingData.routeIsEstimated ? "Estimated distance:" : "Remaining distance:"}</span>
                       <span className="font-bold text-teal">
                         {formatRoadDistance(trackingData.roadDistanceMeters)}
                       </span>
@@ -193,7 +193,7 @@ export default function TrackingPage() {
 
                   {trackingData.estimatedDurationSeconds !== undefined && (
                     <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-ink-500">Driving ETA:</span>
+                      <span className="text-ink-500">{trackingData.routeIsEstimated ? "Estimated driving ETA:" : "Driving ETA:"}</span>
                       <span className="font-bold text-sun-600">
                         {formatEta(trackingData.estimatedDurationSeconds)}
                       </span>

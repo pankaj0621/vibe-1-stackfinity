@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useDashboardUser } from "@/components/layout/dashboard-user-context";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 interface AdminAccount {
   id: string;
@@ -46,12 +47,11 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     if (showSpinner) setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/overview", { cache: "no-store" });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || "Could not load admin overview.");
+      const json = await fetchApi<AdminOverview>("/api/admin/overview", { cache: "no-store" }, "load admin overview");
+      if (!json.data) throw new Error("The server returned no admin overview data. Refresh and try again.");
       setOverview(json.data);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load admin overview.");
+      setError(getApiErrorMessage(loadError, "Could not load admin overview."));
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -68,19 +68,17 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setAccountSaving(true);
     setAccountMessage("");
     try {
-      const response = await fetch("/api/admin/users", {
+      const json = await fetchApi("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(accountForm),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || "Could not create account.");
+      }, "create account");
       notifyLiveUpdate();
       setAccountMessage(`Created ${json.data.role} account for ${json.data.email}. Share the password securely.`);
       setAccountForm({ name: "", email: "", password: "", role: "student" });
       await loadOverview();
     } catch (saveError) {
-      setAccountMessage(saveError instanceof Error ? saveError.message : "Could not create account.");
+      setAccountMessage(getApiErrorMessage(saveError, "Could not create account."));
     } finally {
       setAccountSaving(false);
     }
@@ -101,19 +99,17 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setManageMessage("");
     setManageMessageError(false);
     try {
-      const response = await fetch(`/api/admin/users/${encodeURIComponent(editingId)}`, {
+      const json = await fetchApi(`/api/admin/users/${encodeURIComponent(editingId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || "Could not update account.");
+      }, "update account details");
       notifyLiveUpdate();
       setManageMessage("Account details and access updated.");
       await loadOverview();
       if (json.data.sessionsRevoked && editingId === adminId) window.location.assign("/login");
     } catch (saveError) {
-      setManageMessage(saveError instanceof Error ? saveError.message : "Could not update account.");
+      setManageMessage(getApiErrorMessage(saveError, "Could not update account."));
       setManageMessageError(true);
     } finally {
       setManageSaving(false);
@@ -127,13 +123,11 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setManageMessage("");
     setManageMessageError(false);
     try {
-      const response = await fetch(`/api/admin/users/${encodeURIComponent(editingId)}`, {
+      const json = await fetchApi(`/api/admin/users/${encodeURIComponent(editingId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: resetPassword }),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || "Could not reset password.");
+      }, "reset account password");
       notifyLiveUpdate();
       setResetPassword("");
       setManageMessage("Password reset. All existing sessions for this account have been signed out.");
@@ -143,7 +137,7 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
       }
       await loadOverview();
     } catch (saveError) {
-      setManageMessage(saveError instanceof Error ? saveError.message : "Could not reset password.");
+      setManageMessage(getApiErrorMessage(saveError, "Could not reset the password."));
       setManageMessageError(true);
     } finally {
       setManageSaving(false);
@@ -160,18 +154,16 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setManageMessage("");
     setManageMessageError(false);
     try {
-      const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+      await fetchApi(`/api/admin/users/${encodeURIComponent(user.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isDisabled: isDisabling }),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || "Could not update account access.");
+      }, "change account access");
       notifyLiveUpdate();
       setManageMessage(isDisabling ? "Account disabled. Existing sessions were signed out." : "Account re-enabled.");
       await loadOverview();
     } catch (saveError) {
-      setManageMessage(saveError instanceof Error ? saveError.message : "Could not update account access.");
+      setManageMessage(getApiErrorMessage(saveError, "Could not change account access."));
       setManageMessageError(true);
     } finally {
       setManageSaving(false);

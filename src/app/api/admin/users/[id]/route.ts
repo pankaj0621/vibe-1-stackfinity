@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/permissions";
 import { userService } from "@/features/users/services/user-service";
@@ -11,10 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const input = adminUpdateUserSchema.parse(await req.json());
     const updatedUser = await userService.updateByAdmin(params.id, admin, input);
     return NextResponse.json({ success: true, data: updatedUser });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to update account" },
-      { status: error.statusCode || 400 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to update account" });
   }
 }

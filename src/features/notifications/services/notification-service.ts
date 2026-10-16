@@ -2,6 +2,7 @@ import { UserNotification, RideRequest, Trip, UserRole } from "@/types/domain.ty
 import { uid } from "@/lib/utils/formatters";
 import { userRepository } from "@/features/users/repositories/user-repository";
 import { notificationRepository } from "../repositories/notification-repository";
+import { logServerError } from "@/lib/api/errors";
 
 export type NotificationContent = Pick<UserNotification, "type" | "title" | "message" | "href" | "relatedId">;
 
@@ -34,7 +35,7 @@ export class NotificationService {
         content
       );
     } catch (error) {
-      console.error("Unable to resolve notification recipients.", error);
+      logServerError("resolve notification recipients", error);
     }
   }
 
@@ -57,7 +58,7 @@ export class NotificationService {
       await notificationRepository.createMany(notifications);
     } catch (error) {
       // Notifications are secondary to booking and dispatch state changes.
-      console.error("Unable to save transit notifications.", error);
+      logServerError("save transit notifications", error);
     }
   }
 }

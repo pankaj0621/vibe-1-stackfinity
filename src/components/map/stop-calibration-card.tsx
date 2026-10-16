@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { notifyLiveUpdate } from "@/lib/hooks/use-live-refresh";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 interface StopCalibrationCardProps {
   stops: Record<Stop, StopCoordinate>;
@@ -88,7 +89,7 @@ export default function StopCalibrationCard({
 
     setIsSaving(true);
     try {
-      const res = await fetch("/api/stops/coordinates", {
+      await fetchApi("/api/stops/coordinates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,22 +99,16 @@ export default function StopCalibrationCard({
           longitude: lngNum,
           isVerified: true,
         }),
+      }, "save stop coordinates");
+      notifyLiveUpdate();
+      showToast({
+        title: "Coordinates Calibrated",
+        message: `Verified coordinates saved for ${selectedStop}.`,
+        tone: "teal",
       });
-
-      const data = await res.json();
-      if (data.success) {
-        notifyLiveUpdate();
-        showToast({
-          title: "Coordinates Calibrated",
-          message: `Verified coordinates saved for ${selectedStop} in MongoDB.`,
-          tone: "teal",
-        });
-        if (onSaved) onSaved();
-      } else {
-        showToast({ title: "Error", message: data.error || "Failed to save coordinates", tone: "coral" });
-      }
-    } catch {
-      showToast({ title: "Network Error", message: "Could not save stop coordinates.", tone: "coral" });
+      if (onSaved) onSaved();
+    } catch (error) {
+      showToast({ title: "Coordinate Save Failed", message: getApiErrorMessage(error, "Could not save stop coordinates."), tone: "coral" });
     } finally {
       setIsSaving(false);
     }

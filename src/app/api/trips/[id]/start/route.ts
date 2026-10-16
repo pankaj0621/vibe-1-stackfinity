@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { tripService } from "@/features/trips/services/trip-service";
 import { requireRider } from "@/lib/auth/permissions";
@@ -13,10 +14,7 @@ export async function POST(
     const requestId = params.id;
     const result = await tripService.startTrip(requestId, user);
     return NextResponse.json({ success: true, data: result });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to start trip" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to start trip" });
   }
 }

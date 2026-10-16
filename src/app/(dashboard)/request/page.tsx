@@ -37,6 +37,7 @@ import { useToast } from "@/components/ui/toast";
 import { RideRequest } from "@/types/domain.types";
 import { useDashboardUser } from "@/components/layout/dashboard-user-context";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 function getLocalDateISO(offsetDays = 0): string {
   const [year, month, day] = getTodayDateString(TIMEZONE).split("-").map(Number);
@@ -92,6 +93,7 @@ export default function RequestPage() {
   } | null>(null);
   const [recentBookings, setRecentBookings] = useState<RideRequest[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [totoStatus, setTotoStatus] = useState<VehicleStatus>("free");
   const [liveData, setLiveData] = useState<any>({
     liveRoute: {
@@ -143,13 +145,13 @@ export default function RequestPage() {
   const fetchRecentBookings = useCallback(async () => {
     if (!hasLoadedBookings.current) setLoadingRecent(true);
     try {
-      const res = await fetch("/api/bookings", { cache: "no-store" });
-      const json = await res.json();
+      const json = await fetchApi<RideRequest[]>("/api/bookings", { cache: "no-store" }, "load your ride requests");
       if (json.success && json.data) {
         setRecentBookings(json.data.slice(0, 5));
       }
-    } catch {
-      // Graceful
+      setLoadError("");
+    } catch (error) {
+      setLoadError(getApiErrorMessage(error, "Your ride requests could not be loaded."));
     } finally {
       setLoadingRecent(false);
       hasLoadedBookings.current = true;
@@ -157,17 +159,18 @@ export default function RequestPage() {
   }, []);
 
   const fetchStatus = useCallback(async () => {
-      await fetch("/api/status", { cache: "no-store" })
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success && res.data) {
-            setLiveData(res.data);
-            if (res.data.vehicle?.status) {
-              setTotoStatus(res.data.vehicle.status);
-            }
-          }
-        })
-        .catch(() => {});
+    try {
+      const res = await fetchApi("/api/status", { cache: "no-store" }, "refresh Toto status");
+      if (res.data) {
+        setLiveData(res.data);
+        if (res.data.vehicle?.status) {
+          setTotoStatus(res.data.vehicle.status);
+        }
+      }
+      setLoadError("");
+    } catch (error) {
+      setLoadError(getApiErrorMessage(error, "Live Toto status could not be refreshed."));
+    }
   }, []);
 
   useLiveRefresh(async () => {
@@ -240,7 +243,7 @@ export default function RequestPage() {
 
     try {
       const trimmedNames = names.map((n) => n.trim());
-      const res = await fetch("/api/bookings", {
+      const data = await fetchApi<RideRequest>("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -251,8 +254,7 @@ export default function RequestPage() {
           seats: count,
           names: trimmedNames,
         }),
-      });
-      const data = await res.json();
+      }, "submit your ride request");
 
       if (data.success && data.data) {
         notifyLiveUpdate();
@@ -277,17 +279,11 @@ export default function RequestPage() {
         // Reset passenger names after successful submission, keeping lead user name if logged in
         setNames(Array.from({ length: count }, (_, idx) => (idx === 0 && currentUser ? currentUser.name : "")));
         fetchRecentBookings();
-      } else {
-        const errMsg = data.error || "Submission failed. Please check your parameters.";
-        setErrors({ form: errMsg });
-        showToast({
-          title: "Submission Rejected",
-          message: errMsg,
-          tone: "coral",
-        });
       }
-    } catch {
-      setErrors({ form: "Network error occurred while connecting to MongoDB Atlas." });
+    } catch (error) {
+      const errMsg = getApiErrorMessage(error, "Could not submit your ride request.");
+      setErrors({ form: errMsg });
+      showToast({ title: "Submission Failed", message: errMsg, tone: "coral" });
     } finally {
       setSubmitting(false);
     }
@@ -295,30 +291,21 @@ export default function RequestPage() {
 
   const handleCancelBooking = async (requestId: string) => {
     try {
-      const res = await fetch(`/api/bookings?id=${requestId}`, {
+      await fetchApi(`/api/bookings?id=${encodeURIComponent(requestId)}`, {
         method: "DELETE",
+      }, "cancel your ride request");
+      notifyLiveUpdate();
+      showToast({
+        title: "Request Cancelled",
+        message: `Request ${requestId} has been removed from the queue.`,
+        tone: "neutral",
       });
-      const data = await res.json();
-      if (data.success) {
-        notifyLiveUpdate();
-        showToast({
-          title: "Request Cancelled",
-          message: `Request ${requestId} has been removed from the queue.`,
-          tone: "neutral",
-        });
-        if (submissionFeedback?.request.id === requestId) {
-          setSubmissionFeedback(null);
-        }
-        fetchRecentBookings();
-      } else {
-        showToast({
-          title: "Cancel Failed",
-          message: data.error || "Could not cancel request.",
-          tone: "coral",
-        });
+      if (submissionFeedback?.request.id === requestId) {
+        setSubmissionFeedback(null);
       }
-    } catch {
-      showToast({ title: "Error", message: "Failed to cancel request.", tone: "coral" });
+      void fetchRecentBookings();
+    } catch (error) {
+      showToast({ title: "Cancel Failed", message: getApiErrorMessage(error, "Could not cancel the request."), tone: "coral" });
     }
   };
 
@@ -341,6 +328,11 @@ export default function RequestPage() {
 
   return (
     <div>
+      {loadError && (
+        <div role="alert" className="mx-4 mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:mx-6 lg:mx-10">
+          Live data update issue: {loadError}
+        </div>
+      )}
       {/* Hero Section */}
       <section className="relative overflow-hidden pb-4 pt-6 sm:pt-10">
         <div className="pointer-events-none absolute inset-0 grain opacity-70" />

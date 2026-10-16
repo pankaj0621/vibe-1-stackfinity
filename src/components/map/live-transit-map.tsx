@@ -12,6 +12,7 @@ import {
   getVersion,
   setWorkerUrl,
   type GeoJSONSource,
+  type ErrorEvent as MapLibreErrorEvent,
   type Map as MapLibreMap,
   type Marker as MapLibreMarker,
 } from "maplibre-gl";
@@ -72,6 +73,9 @@ export default function LiveTransitMap({
   const [isFollowingVehicle, setIsFollowingVehicle] = useState(true);
   const [is3DView, setIs3DView] = useState(true);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [mapRetryCount, setMapRetryCount] = useState(0);
+  const mapHasLoadedRef = useRef(false);
 
   useEffect(() => {
     const container = mapContainerRef.current;
@@ -95,18 +99,27 @@ export default function LiveTransitMap({
       return rawUrl;
     };
 
-    const map = new MapLibreMapConstructor({
-      container,
-      style: cartoKey ? addCartoKey(CARTO_VOYAGER_STYLE) : OPENFREEMAP_STYLE,
-      center: [77.3965, 28.5355],
-      zoom: 15,
-      pitch: 56,
-      bearing: -14,
-      maxPitch: 72,
-      attributionControl: false,
-      scrollZoom: true,
-      transformRequest: (url) => ({ url: addCartoKey(url) }),
-    });
+    let map: MapLibreMap;
+    try {
+      map = new MapLibreMapConstructor({
+        container,
+        style: cartoKey ? addCartoKey(CARTO_VOYAGER_STYLE) : OPENFREEMAP_STYLE,
+        center: [77.3965, 28.5355],
+        zoom: 15,
+        pitch: 56,
+        bearing: -14,
+        maxPitch: 72,
+        attributionControl: false,
+        scrollZoom: true,
+        transformRequest: (url) => ({ url: addCartoKey(url) }),
+      });
+    } catch (error) {
+      console.error("[map:init] Map engine could not start.", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+      setMapError("Your browser could not start the interactive map. Enable WebGL or try a supported browser.");
+      return;
+    }
     mapInstanceRef.current = map;
     map.addControl(
       new NavigationControl({ showZoom: true, showCompass: true, visualizePitch: true }),
@@ -123,6 +136,9 @@ export default function LiveTransitMap({
       setIsFollowingVehicle(false);
     };
     const onMapLoad = () => {
+      try {
+        mapHasLoadedRef.current = true;
+        setMapError(null);
       const styleLayers = map.getStyle().layers || [];
       const firstSymbolLayer = styleLayers.find((layer) => layer.type === "symbol")?.id;
 
@@ -218,11 +234,29 @@ export default function LiveTransitMap({
       map.on("dragstart", stopFollowingOnDrag);
       setMapReady(true);
       requestAnimationFrame(() => map.resize());
+      } catch (error) {
+        mapHasLoadedRef.current = false;
+        console.error("[map:init] Interactive map layers could not be initialized.", {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        });
+        setMapError("The map loaded, but its interactive layers could not be initialized. Retry the map.");
+      }
+    };
+    const onMapError = (event: MapLibreErrorEvent) => {
+      const error = event.error;
+      const errorText = error.message || "";
+      // A failed style URL may include the public basemap key. Log only the class, never its URL.
+      console.warn("[map:error] Basemap resource failed to load.");
+      if (/401|403|api.?key|unauthori[sz]ed/i.test(errorText)) {
+        setMapError("Map tiles were rejected. Check the CARTO basemap key in the site settings.");
+      } else if (!mapHasLoadedRef.current) {
+        setMapError("The map could not load. Check your internet connection, then retry.");
+      } else {
+        setMapError("Some map tiles could not load. Check your internet connection.");
+      }
     };
     map.on("load", onMapLoad);
-    map.on("error", (event) => {
-      if (event.error) console.error("Live map request failed:", event.error.message);
-    });
+    map.on("error", onMapError);
 
     const handleResize = () => map.resize();
     window.addEventListener("resize", handleResize);
@@ -230,6 +264,7 @@ export default function LiveTransitMap({
     return () => {
       window.removeEventListener("resize", handleResize);
       map.off("load", onMapLoad);
+      map.off("error", onMapError);
       map.off("dragstart", stopFollowingOnDrag);
       if (positionAnimationRef.current !== null) {
         window.cancelAnimationFrame(positionAnimationRef.current);
@@ -240,9 +275,10 @@ export default function LiveTransitMap({
       markersRef.current = {};
       lastVehicleTargetRef.current = null;
       cameraSignatureRef.current = null;
+      mapHasLoadedRef.current = false;
       setMapReady(false);
     };
-  }, []);
+  }, [mapRetryCount]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -498,7 +534,7 @@ export default function LiveTransitMap({
           </div>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0 sm:gap-3">
-          {trackingData?.roadDistanceMeters !== undefined && trackingData.roadDistanceMeters > 0 && <div className="flex items-center gap-1.5 rounded-xl border border-[#EBE0CD] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#141210] sm:text-[11.5px]"><Navigation size={12} className="shrink-0 text-amber-600" /><span>{formatRoadDistance(trackingData.roadDistanceMeters)}</span>{trackingData.estimatedDurationSeconds !== undefined && <span className="font-normal text-zinc-500">· {formatEta(trackingData.estimatedDurationSeconds)}</span>}</div>}
+          {trackingData?.roadDistanceMeters !== undefined && trackingData.roadDistanceMeters > 0 && <div title={trackingData.routeIsEstimated ? "Road routing is unavailable; distance and ETA are estimates." : "Road-route distance and ETA"} className="flex items-center gap-1.5 rounded-xl border border-[#EBE0CD] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#141210] sm:text-[11.5px]"><Navigation size={12} className="shrink-0 text-amber-600" /><span>{formatRoadDistance(trackingData.roadDistanceMeters)}</span>{trackingData.estimatedDurationSeconds !== undefined && <span className="font-normal text-zinc-500">· {formatEta(trackingData.estimatedDurationSeconds)}</span>}{trackingData.routeIsEstimated && <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-800">Est.</span>}</div>}
           {onRefresh && <button onClick={onRefresh} className="grid h-8 w-8 place-items-center rounded-lg border border-[#E7D9C1] bg-white text-zinc-600 transition hover:bg-[#F6EFE2] hover:text-[#141210]" title="Refresh tracking data"><RefreshCw size={13} className={isLoading ? "animate-spin" : ""} /></button>}
         </div>
       </div>
@@ -508,6 +544,7 @@ export default function LiveTransitMap({
         <div className="pointer-events-none absolute left-3 top-3 z-[500]">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#24433d] shadow-lg backdrop-blur-md"><span className={`h-2 w-2 rounded-full ${isActive ? "animate-pulse bg-emerald-500" : "bg-[#93a49e]"}`} />{isActive ? "Live 3D road view" : "Campus 3D map"}</span>
         </div>
+        {mapError && <div role="alert" className="absolute left-3 right-3 top-12 z-[510] mx-auto flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/95 px-3 py-2 text-[11px] font-medium text-amber-950 shadow-lg backdrop-blur-md sm:left-4 sm:right-auto sm:text-xs"><span className="flex min-w-0 flex-1 items-start gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-700" /><span>{mapError}</span></span><button type="button" onClick={() => { mapHasLoadedRef.current = false; setMapReady(false); setMapError(null); setMapRetryCount((count) => count + 1); }} className="shrink-0 rounded-lg border border-amber-400 bg-white px-2.5 py-1 font-bold text-amber-950 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-600">Retry map</button></div>}
         {trackingData?.latestLocation && <button type="button" onClick={() => {
           const map = mapInstanceRef.current;
           const location = trackingData.latestLocation;

@@ -557,6 +557,7 @@ export class TripService {
       stops,
       latestLocation,
       routeGeometry: roadRoute.coordinates,
+      routeIsEstimated: roadRoute.isEstimated,
       roadDistanceMeters: roadRoute.distanceMeters,
       estimatedDurationSeconds: roadRoute.durationSeconds,
       isLive,

@@ -135,6 +135,7 @@ export interface TripLiveTrackingData {
   stops: Record<Stop, StopCoordinate>;
   latestLocation: LiveLocationPoint | null;
   routeGeometry?: [number, number][]; // Array of [lat, lng] points along actual road network
+  routeIsEstimated?: boolean;
   roadDistanceMeters?: number;
   estimatedDurationSeconds?: number;
   isLive: boolean;

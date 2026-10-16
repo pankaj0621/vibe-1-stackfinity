@@ -34,6 +34,7 @@ import LiveMapWrapper from "@/components/map/live-map-wrapper";
 import RiderGpsBroadcaster from "@/components/map/rider-gps-broadcaster";
 import StopCalibrationCard from "@/components/map/stop-calibration-card";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 export default function RiderPage() {
   const { showToast } = useToast();
@@ -42,6 +43,7 @@ export default function RiderPage() {
   const [heldRequest, setHeldRequest] = useState<RideRequest | null>(null);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [stops, setStops] = useState<Record<Stop, StopCoordinate>>({
     College: { stop: "College", ...DEFAULT_STOP_COORDINATES.College },
     Station: { stop: "Station", ...DEFAULT_STOP_COORDINATES.Station },
@@ -52,10 +54,11 @@ export default function RiderPage() {
   const loadData = useCallback(async () => {
     try {
       const [statusRes, bookingsRes, stopsRes] = await Promise.all([
-        fetch("/api/status", { cache: "no-store" }).then((r) => r.json()),
-        fetch("/api/bookings", { cache: "no-store" }).then((r) => r.json()),
-        fetch("/api/stops/coordinates", { cache: "no-store" }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchApi("/api/status", { cache: "no-store" }, "load Toto status"),
+        fetchApi("/api/bookings", { cache: "no-store" }, "load the rider queue"),
+        fetchApi("/api/stops/coordinates", { cache: "no-store" }, "load transit stops"),
       ]);
+      setLoadError("");
 
       if (stopsRes.success && stopsRes.data) {
         setStops(stopsRes.data);
@@ -67,14 +70,13 @@ export default function RiderPage() {
         setActiveTrip(statusRes.data.activeTrip);
 
         if (statusRes.data.activeTrip) {
-          fetch(`/api/trips/${statusRes.data.activeTrip.id}/tracking`, { cache: "no-store" })
-            .then((r) => r.json())
+          fetchApi(`/api/trips/${statusRes.data.activeTrip.id}/tracking`, { cache: "no-store" }, "load live trip tracking")
             .then((tRes) => {
               if (tRes.success && tRes.data) {
                 setTrackingData(tRes.data);
               }
             })
-            .catch(() => {});
+            .catch((error) => setLoadError(getApiErrorMessage(error, "Live trip tracking could not be loaded.")));
         } else {
           setTrackingData(null);
         }
@@ -84,8 +86,8 @@ export default function RiderPage() {
         setRequests(bookingsRes.data);
       }
 
-    } catch {
-      // Handle network error
+    } catch (error) {
+      setLoadError(getApiErrorMessage(error, "Rider dispatch data could not be loaded."));
     } finally {
       setLoading(false);
     }
@@ -93,28 +95,19 @@ export default function RiderPage() {
 
   const handleUpdateLocation = async (stop: Stop) => {
     try {
-      const res = await fetch("/api/rider/location", {
+      await fetchApi("/api/rider/location", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stop }),
+      }, "broadcast Toto location");
+      notifyLiveUpdate();
+      showToast({
+        title: "Location broadcasted",
+        message: `Toto reported docked at ${stop}. Updated live fleet state.`,
+        tone: "teal",
       });
-      const data = await res.json();
-      if (data.success) {
-        notifyLiveUpdate();
-        showToast({
-          title: "Location broadcasted",
-          message: `Toto reported docked at ${stop}. Updated live fleet state in MongoDB.`,
-          tone: "teal",
-        });
-      } else {
-        showToast({
-          title: "Action Not Permitted",
-          message: data.error || "Rider credentials required.",
-          tone: "coral",
-        });
-      }
-    } catch {
-      showToast({ title: "Error", message: "Failed to broadcast location.", tone: "neutral" });
+    } catch (error) {
+      showToast({ title: "Location Update Failed", message: getApiErrorMessage(error, "Could not broadcast Toto location."), tone: "coral" });
     }
   };
 
@@ -123,12 +116,11 @@ export default function RiderPage() {
   // Handle Accept
   const handleAccept = async (requestId: string) => {
     try {
-      const res = await fetch("/api/trips/accept", {
+      const data = await fetchApi("/api/trips/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId }),
-      });
-      const data = await res.json();
+      }, "reserve this ride slot");
 
       if (data.success) {
         notifyLiveUpdate();
@@ -137,18 +129,12 @@ export default function RiderPage() {
           message: `Toto reserved for ${fmtTime(data.data.request.time)} · ${data.data.request.from} → ${data.data.request.to}`,
           tone: "coral",
         });
-      } else {
-        showToast({
-          title: "Reservation Conflict",
-          message: data.error || "Could not reserve slot.",
-          tone: "coral",
-        });
       }
-    } catch {
+    } catch (error) {
       showToast({
-        title: "Error",
-        message: "Failed to communicate with reservation service.",
-        tone: "neutral",
+        title: "Reservation Failed",
+        message: getApiErrorMessage(error, "Could not reserve this ride slot."),
+        tone: "coral",
       });
     }
   };
@@ -157,10 +143,9 @@ export default function RiderPage() {
   const handleStartTrip = async () => {
     if (!heldRequest) return;
     try {
-      const res = await fetch(`/api/trips/${heldRequest.id}/start`, {
+      const data = await fetchApi(`/api/trips/${heldRequest.id}/start`, {
         method: "POST",
-      });
-      const data = await res.json();
+      }, "start this trip");
 
       if (data.success) {
         notifyLiveUpdate();
@@ -169,18 +154,12 @@ export default function RiderPage() {
           message: "Mark each passenger as boarded or missed during pickup.",
           tone: "teal",
         });
-      } else {
-        showToast({
-          title: "Error",
-          message: data.error || "Could not start trip.",
-          tone: "coral",
-        });
       }
-    } catch {
+    } catch (error) {
       showToast({
-        title: "Error",
-        message: "Failed to start trip.",
-        tone: "neutral",
+        title: "Trip Start Failed",
+        message: getApiErrorMessage(error, "Could not start this trip."),
+        tone: "coral",
       });
     }
   };
@@ -189,24 +168,21 @@ export default function RiderPage() {
   const handleRelease = async () => {
     if (!heldRequest) return;
     try {
-      const res = await fetch(`/api/trips/${heldRequest.id}/release`, {
+      await fetchApi(`/api/trips/${heldRequest.id}/release`, {
         method: "POST",
-      });
-      const data = await res.json();
+      }, "release the reservation");
 
-      if (data.success) {
-        notifyLiveUpdate();
-        showToast({
-          title: "Hold released",
-          message: "The Toto is free again and the request returned to the queue.",
-          tone: "sun",
-        });
-      }
-    } catch {
+      notifyLiveUpdate();
       showToast({
-        title: "Error",
-        message: "Failed to release hold.",
-        tone: "neutral",
+        title: "Hold released",
+        message: "The Toto is free again and the request returned to the queue.",
+        tone: "sun",
+      });
+    } catch (error) {
+      showToast({
+        title: "Release Failed",
+        message: getApiErrorMessage(error, "Could not release the reservation."),
+        tone: "coral",
       });
     }
   };
@@ -218,21 +194,20 @@ export default function RiderPage() {
     const finalStatus = current === newStatus ? null : newStatus;
 
     try {
-      const res = await fetch(`/api/trips/${activeTrip.id}/passengers/${index}`, {
+      const data = await fetchApi(`/api/trips/${activeTrip.id}/passengers/${index}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: finalStatus }),
-      });
-      const data = await res.json();
+      }, "update passenger attendance");
       if (data.success && data.data) {
         setActiveTrip(data.data);
         notifyLiveUpdate();
       }
-    } catch {
+    } catch (error) {
       showToast({
-        title: "Error",
-        message: "Failed to update attendance status.",
-        tone: "neutral",
+        title: "Attendance Update Failed",
+        message: getApiErrorMessage(error, "Could not update passenger attendance."),
+        tone: "coral",
       });
     }
   };
@@ -241,10 +216,9 @@ export default function RiderPage() {
   const handleDone = async () => {
     if (!activeTrip) return;
     try {
-      const res = await fetch(`/api/trips/${activeTrip.id}/complete`, {
+      const data = await fetchApi(`/api/trips/${activeTrip.id}/complete`, {
         method: "POST",
-      });
-      const data = await res.json();
+      }, "complete this trip");
 
       if (data.success) {
         notifyLiveUpdate();
@@ -253,18 +227,12 @@ export default function RiderPage() {
           message: "The record is archived to master history and the Toto is free again.",
           tone: "teal",
         });
-      } else {
-        showToast({
-          title: "Error",
-          message: data.error || "Could not complete trip.",
-          tone: "coral",
-        });
       }
-    } catch {
+    } catch (error) {
       showToast({
-        title: "Error",
-        message: "Failed to complete trip.",
-        tone: "neutral",
+        title: "Trip Completion Failed",
+        message: getApiErrorMessage(error, "Could not complete this trip."),
+        tone: "coral",
       });
     }
   };
@@ -325,6 +293,11 @@ export default function RiderPage() {
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16">
+      {loadError && (
+        <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Rider dashboard update issue: {loadError}
+        </div>
+      )}
       {/* Sticky Status Banner */}
       <div
         className={`banner-in sticky top-[56px] sm:top-[70px] z-20 overflow-hidden rounded-[22px] bg-gradient-to-r ${c.bg} shadow-pop`}

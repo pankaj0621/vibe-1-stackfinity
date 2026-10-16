@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { SessionUser } from "@/types/domain.types";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,31 +37,28 @@ export default function LoginPage() {
     const requestedMode = new URLSearchParams(window.location.search).get("mode");
     if (requestedMode === "signup") setAuthMode("register");
 
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    void fetchApi<SessionUser | null>("/api/auth/me", { cache: "no-store" }, "check your session")
       .then((json) => {
-        if (json.success && json.data) {
-          setCurrentUser(json.data);
-        }
+        if (json.data) setCurrentUser(json.data);
       })
-      .catch(() => {});
-  }, []);
+      .catch((error) => {
+        showToast({ title: "Session Check Failed", message: getApiErrorMessage(error, "Could not check your sign-in status."), tone: "coral" });
+      });
+  }, [showToast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const data = await fetchApi<SessionUser>("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
           password,
         }),
-      });
-
-      const data = await res.json();
+      }, "sign in");
       if (data.success && data.data) {
         setCurrentUser(data.data);
         showToast({
@@ -76,18 +74,12 @@ export default function LoginPage() {
         } else {
           router.push("/request");
         }
-      } else {
-        showToast({
-          title: "Login Failed",
-          message: data.error || "Invalid credentials",
-          tone: "coral",
-        });
       }
-    } catch {
+    } catch (error) {
       showToast({
-        title: "Network Error",
-        message: "Failed to connect to authentication service.",
-        tone: "neutral",
+        title: "Login Failed",
+        message: getApiErrorMessage(error, "Could not sign in. Please try again."),
+        tone: "coral",
       });
     } finally {
       setLoading(false);
@@ -99,7 +91,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const data = await fetchApi<SessionUser>("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -108,9 +100,7 @@ export default function LoginPage() {
           password,
           role: regRole,
         }),
-      });
-
-      const data = await res.json();
+      }, "create your account");
       if (data.success && data.data) {
         setCurrentUser(data.data);
         showToast({
@@ -119,18 +109,12 @@ export default function LoginPage() {
           tone: "teal",
         });
         router.push("/request");
-      } else {
-        showToast({
-          title: "Registration Failed",
-          message: data.error || "Could not register account.",
-          tone: "coral",
-        });
       }
-    } catch {
+    } catch (error) {
       showToast({
-        title: "Network Error",
-        message: "Failed to connect to registration service.",
-        tone: "neutral",
+        title: "Registration Failed",
+        message: getApiErrorMessage(error, "Could not create the account. Please try again."),
+        tone: "coral",
       });
     } finally {
       setLoading(false);
@@ -139,15 +123,19 @@ export default function LoginPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetchApi("/api/auth/logout", { method: "POST" }, "sign out");
       setCurrentUser(null);
       showToast({
         title: "Signed Out",
         message: "Your session has ended successfully.",
         tone: "sun",
       });
-    } catch {
-      // ignore
+    } catch (error) {
+      showToast({
+        title: "Sign Out Failed",
+        message: getApiErrorMessage(error, "Could not end your session. Please try again."),
+        tone: "coral",
+      });
     }
   };
 

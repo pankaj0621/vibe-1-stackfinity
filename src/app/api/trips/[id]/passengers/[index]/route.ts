@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { passengerService } from "@/features/passengers/services/passenger-service";
 import { requireRider } from "@/lib/auth/permissions";
@@ -18,10 +19,7 @@ export async function PATCH(
 
     const updatedTrip = await passengerService.updateBoardingStatus(tripId, index, status, user);
     return NextResponse.json({ success: true, data: updatedTrip });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to update passenger status" },
-      { status: error.statusCode || 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to update passenger status" });
   }
 }

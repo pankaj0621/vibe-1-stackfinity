@@ -7,6 +7,7 @@ interface RouteResult {
   coordinates: [number, number][]; // [lat, lng]
   distanceMeters: number;
   durationSeconds: number;
+  isEstimated: boolean;
 }
 
 const routeCache = new Map<string, { result: RouteResult; timestamp: number }>();
@@ -20,7 +21,7 @@ export async function fetchRoadRoute(
   waypoints: [number, number][]
 ): Promise<RouteResult> {
   if (waypoints.length < 2) {
-    return { coordinates: waypoints, distanceMeters: 0, durationSeconds: 0 };
+    return { coordinates: waypoints, distanceMeters: 0, durationSeconds: 0, isEstimated: false };
   }
 
   // Generate cache key
@@ -41,35 +42,38 @@ export async function fetchRoadRoute(
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordinatesStr}?overview=full&geometries=geojson`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${coordinatesStr}?overview=full&geometries=geojson`;
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
-    clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          // OSRM returns GeoJSON coordinates in [lng, lat] format; the app stores [lat, lng].
+          const routeCoordinates: [number, number][] = route.geometry.coordinates.map(
+            ([lng, lat]: [number, number]) => [lat, lng]
+          );
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.code === "Ok" && data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        // OSRM returns GeoJSON coordinates in [lng, lat] format; Leaflet expects [lat, lng]
-        const routeCoordinates: [number, number][] = route.geometry.coordinates.map(
-          ([lng, lat]: [number, number]) => [lat, lng]
-        );
+          const result: RouteResult = {
+            coordinates: routeCoordinates,
+            distanceMeters: Math.round(route.distance),
+            durationSeconds: Math.round(route.duration),
+            isEstimated: false,
+          };
 
-        const result: RouteResult = {
-          coordinates: routeCoordinates,
-          distanceMeters: Math.round(route.distance),
-          durationSeconds: Math.round(route.duration),
-        };
-
-        routeCache.set(cacheKey, { result, timestamp: Date.now() });
-        return result;
+          routeCache.set(cacheKey, { result, timestamp: Date.now() });
+          return result;
+        }
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
   } catch {
-    // Gracefully handle timeout or network failure
+    // Keep tracking usable during routing outages; the UI marks this result as estimated.
   }
 
   // Fallback: Generate intermediate road curvature points
@@ -89,6 +93,7 @@ export async function fetchRoadRoute(
     coordinates: fallbackCoords,
     distanceMeters: estimatedRoadDistance,
     durationSeconds: estimatedDuration,
+    isEstimated: true,
   };
 
   return fallbackResult;

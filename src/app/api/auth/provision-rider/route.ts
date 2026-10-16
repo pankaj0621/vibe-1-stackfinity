@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { authService } from "@/features/auth/services/auth-service";
 import { provisionRiderSchema } from "@/lib/validation/common";
@@ -17,10 +18,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: rider }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Rider provisioning failed" },
-      { status: error.statusCode || 400 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "provision the rider account" });
   }
 }

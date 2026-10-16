@@ -1,3 +1,4 @@
+import { apiErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/permissions";
 import { adminCreateUserSchema } from "@/lib/validation/common";
@@ -19,10 +20,7 @@ export async function POST(req: NextRequest) {
       relatedId: user.id,
     });
     return NextResponse.json({ success: true, data: user, createdBy: admin.id }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to create account" },
-      { status: error.statusCode || 400 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "Failed to create account" });
   }
 }

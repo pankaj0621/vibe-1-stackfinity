@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Trip } from "@/types/domain.types";
 import { useDashboardUser } from "@/components/layout/dashboard-user-context";
 import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 export default function HistoryPage() {
   const currentUser = useDashboardUser();
@@ -34,19 +35,20 @@ export default function HistoryPage() {
   const [availablePassengers, setAvailablePassengers] = useState<string[]>([]);
   const [filterName, setFilterName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const lastKnownName = useRef(currentUser.name);
 
   const loadInitialData = useCallback(async () => {
     try {
       if (canSeeMasterHistory) {
-        const riderRes = await fetch("/api/history/rider", { cache: "no-store" }).then((r) => r.json());
+        const riderRes = await fetchApi("/api/history/rider", { cache: "no-store" }, "load rider trip history");
         if (riderRes.success && riderRes.data?.trips) {
           setMasterTrips(riderRes.data.trips);
         }
       }
 
       if (canSeePassengerHistory) {
-        const passRes = await fetch("/api/history/passenger", { cache: "no-store" }).then((r) => r.json());
+        const passRes = await fetchApi("/api/history/passenger", { cache: "no-store" }, "load passenger trip history");
         if (passRes.success && passRes.data) {
           const passengers: string[] =
             currentUser.role === "admin"
@@ -56,8 +58,9 @@ export default function HistoryPage() {
           setFilterName((previous) => previous || (currentUser.role === "admin" ? passengers[0] || "" : currentUser.name));
         }
       }
-    } catch {
-      // Graceful
+      setLoadError("");
+    } catch (error) {
+      setLoadError(getApiErrorMessage(error, "Trip history could not be loaded."));
     } finally {
       setLoading(false);
     }
@@ -80,12 +83,12 @@ export default function HistoryPage() {
     setTab(newTab);
     if (newTab === "master" && canSeeMasterHistory && masterTrips.length === 0) {
       try {
-        const res = await fetch("/api/history/rider", { cache: "no-store" }).then((r) => r.json());
+        const res = await fetchApi("/api/history/rider", { cache: "no-store" }, "load rider trip history");
         if (res.success && res.data?.trips) {
           setMasterTrips(res.data.trips);
         }
-      } catch {
-        // Ignore
+      } catch (error) {
+        setLoadError(getApiErrorMessage(error, "Rider trip history could not be loaded."));
       }
     }
   };
@@ -100,15 +103,16 @@ export default function HistoryPage() {
           queryParams.set("userId", currentUser.id);
         }
 
-        const res = await fetch(`/api/history/passenger?${queryParams.toString()}`, { cache: "no-store" });
-        const json = await res.json();
+        const json = await fetchApi(`/api/history/passenger?${queryParams.toString()}`, { cache: "no-store" }, "load passenger trip history");
         if (json.success && json.data?.trips) {
           setPassengerTrips(json.data.trips);
         } else {
           setPassengerTrips([]);
         }
-      } catch {
+        setLoadError("");
+      } catch (error) {
         setPassengerTrips([]);
+        setLoadError(getApiErrorMessage(error, "Passenger trip history could not be loaded."));
       }
   }, [filterName, currentUser]);
 
@@ -120,6 +124,11 @@ export default function HistoryPage() {
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-28 pt-8 sm:px-6 lg:px-10 lg:pb-16">
+      {loadError && (
+        <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          History update issue: {loadError}
+        </div>
+      )}
       <Reveal>
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>

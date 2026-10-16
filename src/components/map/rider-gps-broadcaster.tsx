@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { LiveLocationPoint } from "@/types/domain.types";
+import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 interface RiderGpsBroadcasterProps {
   tripId: string;
@@ -56,7 +57,11 @@ export default function RiderGpsBroadcaster({
   // Stop tracking helper
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      try {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      } catch {
+        // Browser cleanup failures must not leave the rider's screen locked in "sharing" state.
+      }
       watchIdRef.current = null;
     }
     setIsSharing(false);
@@ -126,7 +131,7 @@ export default function RiderGpsBroadcaster({
     setIsSending(true);
 
     try {
-      const res = await fetch("/api/rider/location", {
+      await fetchApi("/api/rider/location", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,28 +142,22 @@ export default function RiderGpsBroadcaster({
           speed: speedKmh || undefined,
           heading: heading !== null && !isNaN(heading) ? Math.round(heading) : undefined,
         }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setUpdateCount((c) => c + 1);
-        setErrorStatus(null);
-        setHasLiveFix(true);
-        if (onLocationBroadcasted) {
-          onLocationBroadcasted({
-            latitude,
-            longitude,
-            accuracy: Math.round(accuracy),
-            speed: speedKmh || undefined,
-            heading: heading !== null && !isNaN(heading) ? Math.round(heading) : undefined,
-            timestamp: nowIso,
-          });
-        }
-      } else {
-        setErrorStatus(data.error || "Failed to persist location update.");
+      }, "broadcast live GPS location");
+      setUpdateCount((c) => c + 1);
+      setErrorStatus(null);
+      setHasLiveFix(true);
+      if (onLocationBroadcasted) {
+        onLocationBroadcasted({
+          latitude,
+          longitude,
+          accuracy: Math.round(accuracy),
+          speed: speedKmh || undefined,
+          heading: heading !== null && !isNaN(heading) ? Math.round(heading) : undefined,
+          timestamp: nowIso,
+        });
       }
-    } catch {
-      setErrorStatus("Network error transmitting GPS telemetry to MongoDB.");
+    } catch (error) {
+      setErrorStatus(getApiErrorMessage(error, "Could not save the GPS update."));
     } finally {
       setIsSending(false);
     }
@@ -176,34 +175,44 @@ export default function RiderGpsBroadcaster({
 
     setErrorStatus(null);
 
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        setPermissionState("granted");
-        sendLocationUpdate(pos);
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          setPermissionState("denied");
-          setErrorStatus(
-            "Location permission was denied. Please allow location access in your browser to share live Toto position."
-          );
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setErrorStatus(
-            "GPS position unavailable. Ensure device location services/satellite lock are active."
-          );
-        } else if (err.code === err.TIMEOUT) {
-          setErrorStatus("GPS request timed out. Retrying satellite fix...");
-        } else {
-          setErrorStatus(err.message || "Unknown geolocation error.");
+    let id: number;
+    try {
+      id = navigator.geolocation.watchPosition(
+        (pos) => {
+          setPermissionState("granted");
+          sendLocationUpdate(pos);
+        },
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) {
+            setPermissionState("denied");
+            setErrorStatus(
+              "Location permission was denied. Please allow location access in your browser to share live Toto position."
+            );
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            setErrorStatus(
+              "GPS position is unavailable. Check device location services and GPS signal."
+            );
+          } else if (err.code === err.TIMEOUT) {
+            setErrorStatus("GPS request timed out. Tap Start Live GPS to try again.");
+          } else {
+            setErrorStatus("The browser could not read the Toto's location. Check location settings and try again.");
+          }
+          stopTracking();
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 3000,
         }
-        stopTracking();
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 3000,
-      }
-    );
+      );
+    } catch (error) {
+      const isPermissionError = error instanceof DOMException && error.name === "NotAllowedError";
+      setPermissionState(isPermissionError ? "denied" : "prompt");
+      setErrorStatus(isPermissionError
+        ? "Location permission is blocked. Allow it in browser site settings, then try again."
+        : "The browser could not start GPS tracking. Check location settings and try again.");
+      return;
+    }
 
     watchIdRef.current = id;
     setIsSharing(true);

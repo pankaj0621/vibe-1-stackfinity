@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authService } from "@/features/auth/services/auth-service";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { loginSchema } from "@/lib/validation/common";
 
 export async function POST(req: NextRequest) {
@@ -9,10 +10,7 @@ export async function POST(req: NextRequest) {
 
     const user = await authService.login(validated.email, validated.password);
     return NextResponse.json({ success: true, data: user });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Authentication failed" },
-      { status: error.statusCode || 400 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, { operation: "sign in" });
   }
 }
