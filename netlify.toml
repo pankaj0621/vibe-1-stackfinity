@@ -1,4 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
 [build.environment]
+  # Force production runtime during Netlify builds even if UI has development env set
+  NODE_ENV = "production"
   # CARTO basemap keys are intentionally sent to browsers for map tile requests.
   # Keep secret scanning enabled for every other configured secret.
   SECRETS_SCAN_OMIT_KEYS = "MONGODB_DB,NEXT_PUBLIC_CARTO_API_KEY"
+

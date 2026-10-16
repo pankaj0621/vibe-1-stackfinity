@@ -1,8 +1,11 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants.js";
+
+/** @type {(phase: string) => import('next').NextConfig} */
+const nextConfig = (phase) => ({
   reactStrictMode: true,
-  // Keep `next dev` output separate so a production build cannot replace its assets.
-  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
+  // Only use `.next-dev` when running the local development server (`next dev`).
+  // Production builds (`next build`) will always output to standard `.next`.
+  ...(phase === PHASE_DEVELOPMENT_SERVER ? { distDir: ".next-dev" } : { distDir: ".next" }),
   images: {
     remotePatterns: [
       {
@@ -11,6 +14,7 @@ const nextConfig = {
       },
     ],
   },
-};
+});
 
 export default nextConfig;
+
