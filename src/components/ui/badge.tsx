@@ -1,29 +1,29 @@
-import type { HTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-type Tone = "neutral" | "success" | "warning" | "danger" | "info";
+export type BadgeTone = "sun" | "teal" | "coral" | "grape" | "dark" | "gray" | "green";
 
-const tones: Record<Tone, string> = {
-  neutral: "bg-slate-100 text-slate-700",
-  success: "bg-emerald-100 text-emerald-700",
-  warning: "bg-amber-100 text-amber-800",
-  danger: "bg-red-100 text-red-700",
-  info: "bg-indigo-100 text-indigo-700",
-};
+interface BadgeProps {
+  children: React.ReactNode;
+  tone?: BadgeTone;
+  className?: string;
+}
 
-export function Badge({
-  tone = "neutral",
-  className,
-  ...props
-}: HTMLAttributes<HTMLSpanElement> & { tone?: Tone }) {
+export function Badge({ children, tone = "sun", className = "" }: BadgeProps) {
+  const tones: Record<BadgeTone, string> = {
+    sun: "bg-sun-100 text-[#8A5B00] border-sun-400/50",
+    teal: "bg-teal-100 text-teal-600 border-teal/30",
+    coral: "bg-coral-100 text-coral-600 border-coral/30",
+    grape: "bg-grape-100 text-grape border-grape/25",
+    dark: "bg-ink text-white border-ink",
+    gray: "bg-[#F1EADC] text-ink-500 border-[#E1D3BC]",
+    green: "bg-[#DFF7E4] text-[#1B7A3E] border-[#A9E4BA]",
+  };
+
   return (
     <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        tones[tone],
-        className
-      )}
-      {...props}
-    />
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide uppercase ${tones[tone]} ${className}`}
+    >
+      {children}
+    </span>
   );
 }

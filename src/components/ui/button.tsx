@@ -1,53 +1,57 @@
-import type { ButtonHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
-import { Spinner } from "./spinner";
+import React from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md" | "lg";
+export type ButtonVariant = "primary" | "sun" | "outline" | "ghost" | "teal" | "coral";
+export type ButtonSize = "sm" | "md" | "lg";
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
   loading?: boolean;
 }
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 " +
-  "disabled:cursor-not-allowed disabled:opacity-60";
-
-const variants: Record<Variant, string> = {
-  primary: "bg-indigo-600 text-white hover:bg-indigo-700",
-  secondary: "bg-white text-slate-900 border border-slate-300 hover:bg-slate-50",
-  ghost: "text-slate-700 hover:bg-slate-100",
-  danger: "bg-red-600 text-white hover:bg-red-700",
-};
-
-const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
-};
-
 export function Button({
+  children,
   variant = "primary",
   size = "md",
+  className = "",
   loading = false,
   disabled,
-  className,
-  children,
-  type = "button",
-  ...props
+  ...rest
 }: ButtonProps) {
+  const base =
+    "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 sweep select-none disabled:opacity-50 disabled:cursor-not-allowed";
+
+  const sizes: Record<ButtonSize, string> = {
+    sm: "px-4 py-2 text-[13px]",
+    md: "px-6 py-3 text-[14px]",
+    lg: "px-8 py-4 text-[16px]",
+  };
+
+  const variants: Record<ButtonVariant, string> = {
+    primary: "bg-ink text-white hover:bg-[#2A2320] shadow-soft hover:shadow-pop",
+    sun: "bg-sun text-ink hover:bg-sun-400 shadow-glow hover:brightness-105",
+    outline: "border-2 border-ink/15 text-ink hover:border-ink/40 hover:bg-white",
+    ghost: "text-ink/70 hover:text-ink hover:bg-ink/5",
+    teal: "bg-teal text-white hover:bg-teal-600 shadow-soft",
+    coral: "bg-coral text-white hover:bg-coral-600 shadow-soft",
+  };
+
   return (
     <button
-      type={type}
+      className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
       disabled={disabled || loading}
-      className={cn(base, variants[variant], sizes[size], className)}
-      {...props}
+      {...rest}
     >
-      {loading && <Spinner className="h-4 w-4" />}
-      {children}
+      {loading ? (
+        <>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span>Processing…</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

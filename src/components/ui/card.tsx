@@ -1,31 +1,20 @@
-import type { HTMLAttributes, ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("rounded-xl border border-slate-200 bg-white p-5 shadow-sm", className)}
-      {...props}
-    />
-  );
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  className?: string;
+  hover?: boolean;
 }
 
-export function CardHeader({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}) {
+export function Card({ children, className = "", hover = false, ...rest }: CardProps) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-3">
-      <div>
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-        {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
-      </div>
-      {action}
+    <div
+      className={`rounded-[22px] border border-[#EADDC6] bg-white/85 backdrop-blur-sm ${
+        hover ? "lift" : ""
+      } ${className}`}
+      {...rest}
+    >
+      {children}
     </div>
   );
 }

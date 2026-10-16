@@ -1,27 +1,41 @@
 {
-  "name": "mobility-app",
-  "version": "0.1.0",
+  "name": "lawazia-toto-mobility",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify:tracking": "node --env-file-if-exists=.env.local tests/verify-e2e-live-tracking.mjs",
+    "seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
+    "admin:create": "node --env-file-if-exists=.env.local scripts/provision-admin.mjs",
+    "test:mongo": "node --env-file-if-exists=.env.local scripts/test-mongo-connection.mjs"
   },
   "dependencies": {
-    "mongodb": "^7.7.0",
-    "next": "16.3.8",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.460.0",
+    "maplibre-gl": "6.14.0",
+    "mongodb": "^6.10.0",
+    "next": "^14.2.16",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.8",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.8.7",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }

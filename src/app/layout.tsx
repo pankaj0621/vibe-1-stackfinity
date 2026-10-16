@@ -1,23 +1,37 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
-import { APP_NAME } from "@/lib/constants";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: { default: APP_NAME, template: `%s | ${APP_NAME}` },
-  description: "Shared three-wheeler rides between College, Station and Office.",
-};
+import { ToastProvider } from "@/components/ui/toast";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#4f46e5",
+  maximumScale: 5,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export const metadata: Metadata = {
+  title: "Lawazia — One Toto. Three Stops. Zero Confusion.",
+  description:
+    "Campus Transit Mobility System for a single e-rickshaw serving College, Station, and Office. Single-trip booking, clash-safe reservation, and verified rider dispatch.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body suppressHydrationWarning>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

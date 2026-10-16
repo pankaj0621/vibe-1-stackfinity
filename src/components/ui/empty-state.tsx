@@ -1,26 +1,30 @@
-import type { ReactNode } from "react";
+import React from "react";
+import { LucideIcon, Ticket } from "lucide-react";
+
+interface EmptyStateProps {
+  icon?: LucideIcon;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}
 
 export function EmptyState({
-  icon,
+  icon: Icon = Ticket,
   title,
   description,
   action,
-}: {
-  icon?: ReactNode;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}) {
+}: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-      {icon && (
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500 [&>svg]:h-6 [&>svg]:w-6">
-          {icon}
-        </div>
-      )}
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-      {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="relative overflow-hidden rounded-[22px] border-2 border-dashed border-[#E2D2B6] bg-white/70 px-6 py-12 text-center">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-sun/20 blur-2xl" />
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-sun to-sun-600 text-ink shadow-glow">
+        <Icon size={26} />
+      </div>
+      <h4 className="mt-5 font-display text-lg text-ink">{title}</h4>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-500">
+        {description}
+      </p>
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }
