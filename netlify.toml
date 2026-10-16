@@ -1,0 +1,4 @@
+[build.environment]
+  # CARTO basemap keys are intentionally sent to browsers for map tile requests.
+  # Keep secret scanning enabled for every other configured secret.
+  SECRETS_SCAN_OMIT_KEYS = "MONGODB_DB,NEXT_PUBLIC_CARTO_API_KEY"
