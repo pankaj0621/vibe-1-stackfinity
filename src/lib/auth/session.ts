@@ -4,12 +4,14 @@ import { SessionUser } from "@/types/domain.types";
 import { userRepository } from "@/features/users/repositories/user-repository";
 
 const SESSION_COOKIE_NAME = "lawazia_session";
-const configuredSecret = process.env.SESSION_SECRET;
+// AUTH_SECRET is supported for deployments that already use that conventional
+// name; SESSION_SECRET remains the documented application-specific setting.
+const configuredSecret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
 if (process.env.NODE_ENV === "production" && (!configuredSecret || configuredSecret.length < 32)) {
-  throw new Error("SESSION_SECRET must be set to a random value of at least 32 characters in production.");
+  throw new Error("SESSION_SECRET (or AUTH_SECRET) must be set to a random value of at least 32 characters in production.");
 }
 if (configuredSecret && configuredSecret.length < 32) {
-  throw new Error("SESSION_SECRET must contain at least 32 characters.");
+  throw new Error("SESSION_SECRET (or AUTH_SECRET) must contain at least 32 characters.");
 }
 const SESSION_SECRET = new TextEncoder().encode(
   configuredSecret || "lawazia-development-only-session-secret-32-chars"
