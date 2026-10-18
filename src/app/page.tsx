@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, ArrowRight, Car, Clock3, GraduationCap, MapPin, ShieldCheck, Users } from "lucide-react";
+import { Activity, ArrowRight, Car, Clock3, MapPin, ShieldCheck, Users } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";

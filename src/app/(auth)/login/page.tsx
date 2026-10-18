@@ -7,18 +7,16 @@ import {
   Car,
   Lock,
   Mail,
-  ArrowRight,
-  UserCheck,
   GraduationCap,
   Briefcase,
   User as UserIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { SessionUser } from "@/types/domain.types";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
+import { getRoleHome } from "@/lib/auth/role-home";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,21 +28,33 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [regRole, setRegRole] = useState<"student" | "employee">("student");
 
-  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const requestedMode = new URLSearchParams(window.location.search).get("mode");
     if (requestedMode === "signup") setAuthMode("register");
 
+    let isCurrent = true;
     void fetchApi<SessionUser | null>("/api/auth/me", { cache: "no-store" }, "check your session")
       .then((json) => {
-        if (json.data) setCurrentUser(json.data);
+        if (isCurrent && json.data) {
+          router.replace(getRoleHome(json.data.role));
+          return;
+        }
+        if (isCurrent) setCheckingSession(false);
       })
       .catch((error) => {
-        showToast({ title: "Session Check Failed", message: getApiErrorMessage(error, "Could not check your sign-in status."), tone: "coral" });
+        if (isCurrent) {
+          showToast({ title: "Session Check Failed", message: getApiErrorMessage(error, "Could not check your sign-in status."), tone: "coral" });
+          setCheckingSession(false);
+        }
       });
-  }, [showToast]);
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [router, showToast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,20 +70,12 @@ export default function LoginPage() {
         }),
       }, "sign in");
       if (data.success && data.data) {
-        setCurrentUser(data.data);
         showToast({
           title: "Signed In",
           message: `Welcome, ${data.data.name}! Verified role: ${data.data.role.toUpperCase()}`,
           tone: "teal",
         });
-
-        if (data.data.role === "admin") {
-          router.push("/admin");
-        } else if (data.data.role === "rider") {
-          router.push("/rider");
-        } else {
-          router.push("/request");
-        }
+        router.replace(getRoleHome(data.data.role));
       }
     } catch (error) {
       showToast({
@@ -102,13 +104,12 @@ export default function LoginPage() {
         }),
       }, "create your account");
       if (data.success && data.data) {
-        setCurrentUser(data.data);
         showToast({
           title: "Account Created",
           message: `Welcome to Lawazia, ${data.data.name}! You are registered as ${data.data.role.toUpperCase()}.`,
           tone: "teal",
         });
-        router.push("/request");
+        router.replace(getRoleHome(data.data.role));
       }
     } catch (error) {
       showToast({
@@ -121,23 +122,13 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetchApi("/api/auth/logout", { method: "POST" }, "sign out");
-      setCurrentUser(null);
-      showToast({
-        title: "Signed Out",
-        message: "Your session has ended successfully.",
-        tone: "sun",
-      });
-    } catch (error) {
-      showToast({
-        title: "Sign Out Failed",
-        message: getApiErrorMessage(error, "Could not end your session. Please try again."),
-        tone: "coral",
-      });
-    }
-  };
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <p role="status" className="text-sm font-semibold text-ink-500">Checking your session…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -160,31 +151,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {currentUser ? (
-          <Card className="p-6 text-center">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-teal text-white shadow-soft">
-              <UserCheck size={26} />
-            </div>
-            <h3 className="mt-4 font-display text-[20px] text-ink">
-              Signed in as {currentUser.name}
-            </h3>
-            <p className="mt-1 text-[12px] text-ink-500">{currentUser.email}</p>
-            <div className="mt-3">
-              <Badge tone="sun">{currentUser.role.toUpperCase()} ACCOUNT</Badge>
-            </div>
-
-            <div className="mt-6 space-y-3">
-          <Link href={currentUser.role === "admin" ? "/admin" : currentUser.role === "rider" ? "/rider" : "/request"} className="block">
-                <Button variant="sun" size="md" className="w-full">
-                  Go to Dashboard <ArrowRight size={16} />
-                </Button>
-              </Link>
-              <Button variant="outline" size="md" className="w-full" onClick={handleLogout}>
-                Sign out
-              </Button>
-            </div>
-          </Card>
-        ) : (
           <Card className="p-6 sm:p-8">
             {/* Auth Mode Toggle */}
             <div className="mb-5 flex rounded-xl bg-ink-100 p-1">
@@ -338,7 +304,6 @@ export default function LoginPage() {
               </form>
             )}
           </Card>
-        )}
 
       </div>
     </div>

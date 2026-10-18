@@ -17,9 +17,7 @@ import {
   X,
   Send,
   ShieldCheck,
-  Lock,
   Activity,
-  ArrowRight,
   AlertTriangle,
   RefreshCw,
   Ticket,
@@ -34,7 +32,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { RideRequest } from "@/types/domain.types";
+import { LiveFleetStatus, RideRequest, VehicleState } from "@/types/domain.types";
 import { useDashboardUser } from "@/components/layout/dashboard-user-context";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
@@ -76,6 +74,10 @@ function getSmartInitialTime(): string {
   return `${h}:${m}`;
 }
 
+type RequestLiveData = Pick<LiveFleetStatus, "liveRoute" | "latestBoarded" | "nextSlot"> & {
+  vehicle: Pick<VehicleState, "status">;
+};
+
 export default function RequestPage() {
   const { showToast } = useToast();
   const currentUser = useDashboardUser();
@@ -95,13 +97,14 @@ export default function RequestPage() {
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [totoStatus, setTotoStatus] = useState<VehicleStatus>("free");
-  const [liveData, setLiveData] = useState<any>({
+  const [liveData, setLiveData] = useState<RequestLiveData>({
     liveRoute: {
       origin: "College",
       destination: "Office",
       display: "College → Station → Office",
       subtext: "Campus transit loop · Ready for next request",
       statusLabel: "Live route",
+      isLoop: true,
     },
     latestBoarded: {
       name: "No active trip",
@@ -160,7 +163,7 @@ export default function RequestPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetchApi("/api/status", { cache: "no-store" }, "refresh Toto status");
+      const res = await fetchApi<LiveFleetStatus>("/api/status", { cache: "no-store" }, "refresh Toto status");
       if (res.data) {
         setLiveData(res.data);
         if (res.data.vehicle?.status) {

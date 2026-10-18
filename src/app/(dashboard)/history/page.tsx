@@ -10,8 +10,6 @@ import {
   Users,
   Check,
   X,
-  AlertCircle,
-  Car,
 } from "lucide-react";
 import { fmtTime, AVATARS } from "@/lib/utils/formatters";
 import { Reveal } from "@/components/ui/reveal";
@@ -31,7 +29,7 @@ export default function HistoryPage() {
     currentUser.role === "rider" ? "master" : "passenger"
   );
   const [masterTrips, setMasterTrips] = useState<Trip[]>([]);
-  const [passengerTrips, setPassengerTrips] = useState<any[]>([]);
+  const [passengerTrips, setPassengerTrips] = useState<Trip[]>([]);
   const [availablePassengers, setAvailablePassengers] = useState<string[]>([]);
   const [filterName, setFilterName] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -41,14 +39,14 @@ export default function HistoryPage() {
   const loadInitialData = useCallback(async () => {
     try {
       if (canSeeMasterHistory) {
-        const riderRes = await fetchApi("/api/history/rider", { cache: "no-store" }, "load rider trip history");
+        const riderRes = await fetchApi<{ trips: Trip[] }>("/api/history/rider", { cache: "no-store" }, "load rider trip history");
         if (riderRes.success && riderRes.data?.trips) {
           setMasterTrips(riderRes.data.trips);
         }
       }
 
       if (canSeePassengerHistory) {
-        const passRes = await fetchApi("/api/history/passenger", { cache: "no-store" }, "load passenger trip history");
+        const passRes = await fetchApi<{ trips: Trip[]; availablePassengers?: string[] }>("/api/history/passenger", { cache: "no-store" }, "load passenger trip history");
         if (passRes.success && passRes.data) {
           const passengers: string[] =
             currentUser.role === "admin"
@@ -83,7 +81,7 @@ export default function HistoryPage() {
     setTab(newTab);
     if (newTab === "master" && canSeeMasterHistory && masterTrips.length === 0) {
       try {
-        const res = await fetchApi("/api/history/rider", { cache: "no-store" }, "load rider trip history");
+        const res = await fetchApi<{ trips: Trip[] }>("/api/history/rider", { cache: "no-store" }, "load rider trip history");
         if (res.success && res.data?.trips) {
           setMasterTrips(res.data.trips);
         }
@@ -103,7 +101,7 @@ export default function HistoryPage() {
           queryParams.set("userId", currentUser.id);
         }
 
-        const json = await fetchApi(`/api/history/passenger?${queryParams.toString()}`, { cache: "no-store" }, "load passenger trip history");
+        const json = await fetchApi<{ trips: Trip[] }>(`/api/history/passenger?${queryParams.toString()}`, { cache: "no-store" }, "load passenger trip history");
         if (json.success && json.data?.trips) {
           setPassengerTrips(json.data.trips);
         } else {

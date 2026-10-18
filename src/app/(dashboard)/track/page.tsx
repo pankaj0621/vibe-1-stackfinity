@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Compass,
   MapPin,
-  Clock,
   ShieldCheck,
   RefreshCw,
   Car,
@@ -16,7 +15,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TripLiveTrackingData, Trip, StopCoordinate } from "@/types/domain.types";
+import { LiveFleetStatus, TripLiveTrackingData, Trip, StopCoordinate } from "@/types/domain.types";
 import { fmtTime } from "@/lib/utils/formatters";
 import { formatRoadDistance, formatEta } from "@/lib/utils/routing";
 import { DEFAULT_STOP_COORDINATES, Stop } from "@/config/transit";
@@ -38,8 +37,8 @@ export default function TrackingPage() {
   const loadTracking = useCallback(async () => {
     try {
       const [statusRes, stopsRes] = await Promise.all([
-        fetchApi("/api/status", { cache: "no-store" }, "load Toto status"),
-        fetchApi("/api/stops/coordinates", { cache: "no-store" }, "load transit stops"),
+        fetchApi<LiveFleetStatus>("/api/status", { cache: "no-store" }, "load Toto status"),
+        fetchApi<Record<Stop, StopCoordinate>>("/api/stops/coordinates", { cache: "no-store" }, "load transit stops"),
       ]);
       if (stopsRes.success && stopsRes.data) setStopCoordinates(stopsRes.data);
 
@@ -48,7 +47,7 @@ export default function TrackingPage() {
         setActiveTrip(trip);
 
         // Fetch protected live tracking endpoint for this trip
-        const trackJson = await fetchApi(`/api/trips/${trip.id}/tracking`, { cache: "no-store" }, "load live trip tracking");
+        const trackJson = await fetchApi<TripLiveTrackingData>(`/api/trips/${trip.id}/tracking`, { cache: "no-store" }, "load live trip tracking");
 
         if (trackJson.success && trackJson.data) {
           setTrackingData(trackJson.data);

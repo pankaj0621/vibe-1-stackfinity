@@ -79,6 +79,32 @@ export interface VehicleState {
   lastUpdated: string;
 }
 
+export interface LiveFleetStatus {
+  vehicle: VehicleState;
+  heldRequest: RideRequest | null;
+  activeTrip: Trip | null;
+  nextPendingRequest: RideRequest | null;
+  latestCompletedTrip: Trip | null;
+  liveRoute: {
+    origin: string;
+    destination: string;
+    display: string;
+    subtext: string;
+    statusLabel: string;
+    isLoop: boolean;
+  };
+  latestBoarded: {
+    name: string;
+    status: "boarded" | "missed" | "waiting";
+    subtext: string;
+  };
+  nextSlot: {
+    time: string;
+    label: string;
+    subtext: string;
+  };
+}
+
 export interface BookingConflict {
   id: string;
   conflictingRequestId: string;

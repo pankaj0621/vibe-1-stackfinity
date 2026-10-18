@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MapPin, Check, Save, Crosshair, AlertTriangle, ShieldCheck } from "lucide-react";
+import { MapPin, Save, Crosshair, ShieldCheck } from "lucide-react";
 import { Stop, STOPS } from "@/config/transit";
 import { StopCoordinate } from "@/types/domain.types";
 import { Button } from "@/components/ui/button";

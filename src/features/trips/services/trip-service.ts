@@ -11,7 +11,7 @@ import {
   RiderLocationUpdate,
   StopCoordinate,
   TripLiveTrackingData,
-  LiveLocationPoint,
+  LiveFleetStatus,
 } from "@/types/domain.types";
 import {
   DEFAULT_RIDER_NAME,
@@ -27,32 +27,6 @@ import { riderLocationSchema, updateStopCoordinateSchema } from "@/lib/validatio
 import { fetchRoadRoute } from "@/lib/utils/routing";
 import { z } from "zod";
 import { notificationService } from "@/features/notifications/services/notification-service";
-
-export interface LiveFleetStatus {
-  vehicle: VehicleState;
-  heldRequest: RideRequest | null;
-  activeTrip: Trip | null;
-  nextPendingRequest: RideRequest | null;
-  latestCompletedTrip: Trip | null;
-  liveRoute: {
-    origin: string;
-    destination: string;
-    display: string;
-    subtext: string;
-    statusLabel: string;
-    isLoop: boolean;
-  };
-  latestBoarded: {
-    name: string;
-    status: "boarded" | "missed" | "waiting";
-    subtext: string;
-  };
-  nextSlot: {
-    time: string;
-    label: string;
-    subtext: string;
-  };
-}
 
 export class TripService {
   async getStatus(): Promise<LiveFleetStatus> {

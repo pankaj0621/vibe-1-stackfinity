@@ -1,4 +1,4 @@
-import { Collection, Db } from "mongodb";
+import { Collection } from "mongodb";
 import { getDb } from "./mongodb";
 import {
   User,

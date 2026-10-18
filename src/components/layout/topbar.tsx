@@ -2,12 +2,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Car, CheckCheck, User as UserIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, Car, CheckCheck, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import { AVATARS } from "@/lib/utils/formatters";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { SessionUser, UserNotification } from "@/types/domain.types";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
+import { getRoleHome } from "@/lib/auth/role-home";
 
 interface TopBarProps {
   currentUser?: SessionUser | null;
@@ -20,11 +21,17 @@ interface NotificationResponse {
 
 export function TopBar({ currentUser }: TopBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationResponse>({ items: [], unreadCount: 0 });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationError, setNotificationError] = useState("");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
   const hasLoadedNotifications = useRef(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
 
   const getPageMeta = () => {
     switch (pathname) {
@@ -44,12 +51,7 @@ export function TopBar({ currentUser }: TopBarProps) {
   };
 
   const [title, subtitle] = getPageMeta();
-  const homeHref =
-    currentUser?.role === "admin"
-      ? "/admin"
-      : currentUser?.role === "rider"
-      ? "/rider"
-      : "/request";
+  const homeHref = currentUser ? getRoleHome(currentUser.role) : "/login";
 
   const loadNotifications = useCallback(async () => {
     if (!currentUser) return;
@@ -74,6 +76,41 @@ export function TopBar({ currentUser }: TopBarProps) {
       return;
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) setAccountMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAccountMenuOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [accountMenuOpen]);
+
+  const handleSignOut = async () => {
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await fetchApi("/api/auth/logout", { method: "POST" }, "sign out");
+      setAccountMenuOpen(false);
+      router.replace("/login");
+    } catch (error) {
+      setLogoutError(getApiErrorMessage(error, "Could not sign out. Please try again."));
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   useLiveRefresh(loadNotifications, 5000);
 
@@ -129,6 +166,7 @@ export function TopBar({ currentUser }: TopBarProps) {
             onClick={() => {
               const nextOpen = !notificationsOpen;
               setNotificationsOpen(nextOpen);
+              if (nextOpen) setAccountMenuOpen(false);
               if (nextOpen) void loadNotifications();
             }}
             className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#E5D5BA] bg-white text-ink-600 transition hover:border-sun hover:text-ink"
@@ -210,12 +248,67 @@ export function TopBar({ currentUser }: TopBarProps) {
             </section>
           )}
 
-          <Link href="/login" className="flex min-w-0 items-center gap-2 rounded-full border border-[#E5D5BA] bg-white py-1.5 pl-1.5 pr-3 transition hover:border-sun">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={currentUser?.role === "rider" ? AVATARS[1] : AVATARS[0]} alt={currentUser?.name || "User"} className="h-7 w-7 shrink-0 rounded-full object-cover" />
-            <span className="hidden max-w-32 truncate text-[12px] font-semibold text-ink sm:block">{currentUser?.name || "Sign In"}</span>
-            {currentUser && <span className="rounded-full bg-sun-100 px-2 py-0.5 text-[10px] font-bold uppercase text-[#8A5B00]">{currentUser.role}</span>}
-          </Link>
+          <div ref={accountMenuRef} className="relative">
+            {currentUser ? (
+              <button
+                ref={accountButtonRef}
+                type="button"
+                onClick={() => {
+                  const nextOpen = !accountMenuOpen;
+                  setAccountMenuOpen(nextOpen);
+                  setLogoutError("");
+                  if (nextOpen) setNotificationsOpen(false);
+                }}
+                className="flex min-w-0 items-center gap-2 rounded-full border border-[#E5D5BA] bg-white py-1.5 pl-1.5 pr-2.5 transition hover:border-sun focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sun"
+                aria-label={`Account menu for ${currentUser.name}`}
+                aria-haspopup="menu"
+                aria-expanded={accountMenuOpen}
+                aria-controls="account-menu"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={currentUser.role === "rider" ? AVATARS[1] : AVATARS[0]} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+                <span className="hidden max-w-32 truncate text-[12px] font-semibold text-ink sm:block">{currentUser.name}</span>
+                <span className="rounded-full bg-sun-100 px-2 py-0.5 text-[10px] font-bold uppercase text-[#8A5B00]">{currentUser.role}</span>
+                <ChevronDown size={14} className={`shrink-0 text-ink-500 transition-transform ${accountMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+            ) : (
+              <Link href="/login" className="flex min-w-0 items-center gap-2 rounded-full border border-[#E5D5BA] bg-white py-1.5 pl-1.5 pr-3 transition hover:border-sun">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={AVATARS[0]} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+                <span className="text-[12px] font-semibold text-ink">Sign In</span>
+              </Link>
+            )}
+
+            {currentUser && accountMenuOpen && (
+              <section
+                id="account-menu"
+                role="menu"
+                aria-label="Account options"
+                className="absolute right-0 top-full z-[60] mt-3 w-[min(18rem,calc(100vw-1.5rem))] overflow-hidden rounded-[20px] border border-[#E7D9C1] bg-white shadow-[0_20px_60px_rgba(35,28,18,0.18)]"
+              >
+                <div className="border-b border-[#F0E6D5] px-4 py-4">
+                  <p className="truncate text-sm font-bold text-ink">{currentUser.name}</p>
+                  <p className="mt-1 truncate text-xs text-ink-500">{currentUser.email}</p>
+                  <p className="mt-3 inline-flex rounded-full bg-sun-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#8A5B00]">
+                    {currentUser.role} account
+                  </p>
+                </div>
+                {logoutError && <p role="alert" className="px-4 pt-3 text-xs text-coral">{logoutError}</p>}
+                <div className="p-2">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void handleSignOut()}
+                    disabled={loggingOut}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-700 transition hover:bg-coral/10 hover:text-coral disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <LogOut size={16} />
+                    {loggingOut ? "Signing out…" : "Sign out"}
+                  </button>
+                </div>
+              </section>
+            )}
+          </div>
         </div>
       </div>
     </header>

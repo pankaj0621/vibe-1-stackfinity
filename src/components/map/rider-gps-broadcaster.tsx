@@ -5,13 +5,11 @@ import {
   Radio,
   MapPin,
   AlertTriangle,
-  CheckCircle2,
   Navigation,
   Compass,
   Gauge,
   ShieldAlert,
   Power,
-  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -305,7 +303,9 @@ export default function RiderGpsBroadcaster({
               </Badge>
             </div>
             <div className="text-[11.5px] sm:text-[12px] text-ink-500 leading-snug line-clamp-2">
-              {isSharing
+              {isSending
+                ? "Saving the latest GPS location…"
+                : isSharing
                 ? `Transmitting real device coordinates to MongoDB (${updateCount} updates sent)`
                 : "Broadcast real-time satellite GPS coordinates to passengers"}
             </div>

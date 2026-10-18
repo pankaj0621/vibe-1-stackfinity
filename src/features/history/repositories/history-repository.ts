@@ -1,5 +1,6 @@
 import { getDb, getInMemoryDb } from "@/lib/db/mongodb";
 import { Trip } from "@/types/domain.types";
+import type { Filter } from "mongodb";
 
 export class HistoryRepository {
   async getAllCompletedTrips(): Promise<Trip[]> {
@@ -17,7 +18,7 @@ export class HistoryRepository {
   async getTripsForPassenger(query: { userId?: string; passengerName?: string }): Promise<Trip[]> {
     const db = await getDb();
     if (db) {
-      const orConditions: any[] = [];
+      const orConditions: Filter<Trip>[] = [];
       if (query.userId) {
         orConditions.push({ filerId: query.userId });
         orConditions.push({ "passengers.userId": query.userId });
@@ -30,7 +31,7 @@ export class HistoryRepository {
         orConditions.push({ filerName: regex });
       }
 
-      const filter: any = { status: "completed" };
+      const filter: Filter<Trip> = { status: "completed" };
       if (orConditions.length > 0) {
         filter.$or = orConditions;
       }

@@ -6,6 +6,7 @@ import { Activity, Car, Clock3, History, KeyRound, RefreshCw, Search, ShieldChec
 import type { LucideIcon } from "lucide-react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useDashboardUser } from "@/components/layout/dashboard-user-context";
+import type { SessionUser } from "@/types/domain.types";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
@@ -68,13 +69,15 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setAccountSaving(true);
     setAccountMessage("");
     try {
-      const json = await fetchApi("/api/admin/users", {
+      const json = await fetchApi<SessionUser>("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(accountForm),
       }, "create account");
       notifyLiveUpdate();
-      setAccountMessage(`Created ${json.data.role} account for ${json.data.email}. Share the password securely.`);
+      setAccountMessage(json.data
+        ? `Created ${json.data.role} account for ${json.data.email}. Share the password securely.`
+        : "Account created successfully. Refresh the list if it does not appear yet.");
       setAccountForm({ name: "", email: "", password: "", role: "student" });
       await loadOverview();
     } catch (saveError) {
@@ -99,7 +102,7 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setManageMessage("");
     setManageMessageError(false);
     try {
-      const json = await fetchApi(`/api/admin/users/${encodeURIComponent(editingId)}`, {
+      const json = await fetchApi<SessionUser & { isDisabled: boolean; sessionsRevoked: boolean }>(`/api/admin/users/${encodeURIComponent(editingId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
@@ -107,7 +110,7 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
       notifyLiveUpdate();
       setManageMessage("Account details and access updated.");
       await loadOverview();
-      if (json.data.sessionsRevoked && editingId === adminId) window.location.assign("/login");
+      if (json.data?.sessionsRevoked && editingId === adminId) window.location.assign("/login");
     } catch (saveError) {
       setManageMessage(getApiErrorMessage(saveError, "Could not update account."));
       setManageMessageError(true);
@@ -123,7 +126,7 @@ export function AdminDashboard({ adminId }: { adminId: string }) {
     setManageMessage("");
     setManageMessageError(false);
     try {
-      const json = await fetchApi(`/api/admin/users/${encodeURIComponent(editingId)}`, {
+      await fetchApi<SessionUser & { isDisabled: boolean; sessionsRevoked: boolean }>(`/api/admin/users/${encodeURIComponent(editingId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: resetPassword }),

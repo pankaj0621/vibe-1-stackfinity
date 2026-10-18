@@ -29,7 +29,7 @@ import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal } from "@/components/ui/reveal";
 import { useToast } from "@/components/ui/toast";
-import { RideRequest, Trip, StopCoordinate, TripLiveTrackingData } from "@/types/domain.types";
+import { LiveFleetStatus, RideRequest, Trip, StopCoordinate, TripLiveTrackingData, VehicleState } from "@/types/domain.types";
 import LiveMapWrapper from "@/components/map/live-map-wrapper";
 import RiderGpsBroadcaster from "@/components/map/rider-gps-broadcaster";
 import StopCalibrationCard from "@/components/map/stop-calibration-card";
@@ -54,9 +54,9 @@ export default function RiderPage() {
   const loadData = useCallback(async () => {
     try {
       const [statusRes, bookingsRes, stopsRes] = await Promise.all([
-        fetchApi("/api/status", { cache: "no-store" }, "load Toto status"),
-        fetchApi("/api/bookings", { cache: "no-store" }, "load the rider queue"),
-        fetchApi("/api/stops/coordinates", { cache: "no-store" }, "load transit stops"),
+        fetchApi<LiveFleetStatus>("/api/status", { cache: "no-store" }, "load Toto status"),
+        fetchApi<RideRequest[]>("/api/bookings", { cache: "no-store" }, "load the rider queue"),
+        fetchApi<Record<Stop, StopCoordinate>>("/api/stops/coordinates", { cache: "no-store" }, "load transit stops"),
       ]);
       setLoadError("");
 
@@ -70,7 +70,7 @@ export default function RiderPage() {
         setActiveTrip(statusRes.data.activeTrip);
 
         if (statusRes.data.activeTrip) {
-          fetchApi(`/api/trips/${statusRes.data.activeTrip.id}/tracking`, { cache: "no-store" }, "load live trip tracking")
+          fetchApi<TripLiveTrackingData>(`/api/trips/${statusRes.data.activeTrip.id}/tracking`, { cache: "no-store" }, "load live trip tracking")
             .then((tRes) => {
               if (tRes.success && tRes.data) {
                 setTrackingData(tRes.data);
@@ -116,13 +116,13 @@ export default function RiderPage() {
   // Handle Accept
   const handleAccept = async (requestId: string) => {
     try {
-      const data = await fetchApi("/api/trips/accept", {
+      const data = await fetchApi<{ request: RideRequest; vehicle: VehicleState }>("/api/trips/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId }),
       }, "reserve this ride slot");
 
-      if (data.success) {
+      if (data.success && data.data) {
         notifyLiveUpdate();
         showToast({
           title: "Slot held",
@@ -194,7 +194,7 @@ export default function RiderPage() {
     const finalStatus = current === newStatus ? null : newStatus;
 
     try {
-      const data = await fetchApi(`/api/trips/${activeTrip.id}/passengers/${index}`, {
+      const data = await fetchApi<Trip>(`/api/trips/${activeTrip.id}/passengers/${index}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: finalStatus }),
@@ -734,7 +734,7 @@ export default function RiderPage() {
               </div>
               <h4 className="mt-2 font-display text-[17px] text-ink">Broadcast Toto Location</h4>
               <p className="mt-1 text-[11.5px] leading-relaxed text-ink-500">
-                Update the vehicle's docked stop in MongoDB to broadcast real-time telemetry to passenger screens.
+                Update the vehicle&apos;s docked stop in MongoDB to broadcast real-time telemetry to passenger screens.
               </p>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {STOPS.map((stop) => (

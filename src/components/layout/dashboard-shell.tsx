@@ -9,7 +9,7 @@ import { DashboardUserProvider } from "@/components/layout/dashboard-user-contex
 import { useDashboardUser } from "@/components/layout/dashboard-user-context";
 import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { VehicleStatus } from "@/config/transit";
-import { SessionUser } from "@/types/domain.types";
+import { LiveFleetStatus, SessionUser } from "@/types/domain.types";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 
 export function DashboardShell({
@@ -33,7 +33,7 @@ function DashboardShellContent({ children }: { children: React.ReactNode }) {
 
   useLiveRefresh(async () => {
     try {
-      const json = await fetchApi("/api/status", { cache: "no-store" }, "refresh Toto status");
+      const json = await fetchApi<LiveFleetStatus>("/api/status", { cache: "no-store" }, "refresh Toto status");
       if (json.data?.vehicle?.status) {
         setTotoStatus(json.data.vehicle.status);
         setStatusError("");

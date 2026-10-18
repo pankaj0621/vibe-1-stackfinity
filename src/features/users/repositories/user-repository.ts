@@ -35,7 +35,6 @@ export class UserRepository {
     const db = await getDb();
     if (db) {
       const doc = { ...toSave };
-      delete (doc as any)._id;
       await db.collection<User>("users").insertOne(doc);
       return toSave;
     }
@@ -60,7 +59,11 @@ export class UserRepository {
       return await db.collection<User>("users").find({}, { projection: { _id: 0, passwordHash: 0 } }).toArray();
     }
     const memDb = getInMemoryDb();
-    return memDb.users.map(({ passwordHash: _passwordHash, ...user }) => user);
+    return memDb.users.map((user) => {
+      const { passwordHash, ...safeUser } = user;
+      void passwordHash;
+      return safeUser;
+    });
   }
 
   async countActiveAdmins(): Promise<number> {
@@ -86,7 +89,8 @@ export class UserRepository {
     const user = getInMemoryDb().users.find((item) => item.id === id);
     if (!user) return null;
     Object.assign(user, updates, { updatedAt: now });
-    const { passwordHash: _passwordHash, ...safeUser } = user;
+    const { passwordHash, ...safeUser } = user;
+    void passwordHash;
     return safeUser;
   }
 }

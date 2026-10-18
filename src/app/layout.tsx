@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-page-custom-font -- App Router fonts are shared from the root layout. */
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";

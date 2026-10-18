@@ -1,4 +1,4 @@
-export interface ApiEnvelope<T = any> {
+export interface ApiEnvelope<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -62,7 +62,7 @@ function statusMessage(status: number, operation: string): string {
   }
 }
 
-export async function fetchApi<T = any>(
+export async function fetchApi<T = unknown>(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
   operation: string

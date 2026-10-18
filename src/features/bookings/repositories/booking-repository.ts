@@ -26,7 +26,6 @@ export class BookingRepository {
     const db = await getDb();
     if (db) {
       const doc = { ...request };
-      delete (doc as any)._id;
       await db.collection<RideRequest>("ride_requests").insertOne(doc);
       return request;
     }

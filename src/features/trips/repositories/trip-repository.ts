@@ -8,8 +8,7 @@ import {
   StopCoordinate,
   LiveLocationPoint,
 } from "@/types/domain.types";
-import { TOTO_VEHICLE_ID, DEFAULT_RIDER_NAME, DEFAULT_STOP_COORDINATES, Stop, STOPS } from "@/config/transit";
-import { bookingRepository } from "@/features/bookings/repositories/booking-repository";
+import { TOTO_VEHICLE_ID, DEFAULT_STOP_COORDINATES, Stop, STOPS } from "@/config/transit";
 
 export class TripRepository {
   async getVehicleState(): Promise<VehicleState> {
@@ -350,7 +349,6 @@ export class TripRepository {
 
       try {
         const doc = { ...trip };
-        delete (doc as any)._id;
         await db.collection<Trip>("trips").insertOne(doc);
         return true;
       } catch (error) {
@@ -388,7 +386,6 @@ export class TripRepository {
     const db = await getDb();
     if (db) {
       const doc = { ...trip };
-      delete (doc as any)._id;
       await db.collection<Trip>("trips").insertOne(doc);
       return trip;
     }

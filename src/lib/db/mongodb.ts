@@ -1,7 +1,7 @@
-import { MongoClient, Db, Collection } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import bcrypt from "bcryptjs";
 import { RideRequest, Trip, VehicleState, User, BookingConflict, RiderLocationUpdate, StopCoordinate, UserNotification } from "@/types/domain.types";
-import { TOTO_VEHICLE_ID, DEFAULT_STOP_COORDINATES, Stop, STOPS } from "@/config/transit";
+import { TOTO_VEHICLE_ID, DEFAULT_STOP_COORDINATES } from "@/config/transit";
 import { ensureIndexes } from "./indexes";
 import { getTodayDateString } from "@/lib/utils/time";
 
