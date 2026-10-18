@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { SessionUser } from "@/types/domain.types";
 import { userRepository } from "@/features/users/repositories/user-repository";
 
@@ -40,7 +41,7 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
   }
 }
 
-export async function getSession(): Promise<SessionUser | null> {
+export const getSession = cache(async (): Promise<SessionUser | null> => {
   const cookieStore = cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
@@ -59,7 +60,7 @@ export async function getSession(): Promise<SessionUser | null> {
     role: account.role,
     sessionVersion: account.sessionVersion ?? 0,
   };
-}
+});
 
 export async function setSessionCookie(user: SessionUser): Promise<void> {
   const token = await signSessionToken(user);
