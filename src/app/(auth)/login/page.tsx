@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,8 +28,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [regRole, setRegRole] = useState<"student" | "employee">("student");
 
-  const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
+  const authAttemptStarted = useRef(false);
 
   useEffect(() => {
     const requestedMode = new URLSearchParams(window.location.search).get("mode");
@@ -38,16 +38,13 @@ export default function LoginPage() {
     let isCurrent = true;
     void fetchApi<SessionUser | null>("/api/auth/me", { cache: "no-store" }, "check your session")
       .then((json) => {
-        if (isCurrent && json.data) {
+        if (isCurrent && !authAttemptStarted.current && json.data) {
           router.replace(getRoleHome(json.data.role));
-          return;
         }
-        if (isCurrent) setCheckingSession(false);
       })
       .catch((error) => {
-        if (isCurrent) {
+        if (isCurrent && !authAttemptStarted.current) {
           showToast({ title: "Session Check Failed", message: getApiErrorMessage(error, "Could not check your sign-in status."), tone: "coral" });
-          setCheckingSession(false);
         }
       });
 
@@ -58,6 +55,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    authAttemptStarted.current = true;
     setLoading(true);
 
     try {
@@ -90,6 +88,7 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    authAttemptStarted.current = true;
     setLoading(true);
 
     try {
@@ -121,14 +120,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  if (checkingSession) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <p role="status" className="text-sm font-semibold text-ink-500">Checking your session…</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
