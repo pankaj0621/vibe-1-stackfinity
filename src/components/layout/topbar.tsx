@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Bell, Car, CheckCheck, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import { AVATARS } from "@/lib/utils/formatters";
 import { notifyLiveUpdate, useLiveRefresh } from "@/lib/hooks/use-live-refresh";
@@ -21,7 +21,6 @@ interface NotificationResponse {
 
 export function TopBar({ currentUser }: TopBarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationResponse>({ items: [], unreadCount: 0 });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -104,7 +103,9 @@ export function TopBar({ currentUser }: TopBarProps) {
     try {
       await fetchApi("/api/auth/logout", { method: "POST" }, "sign out");
       setAccountMenuOpen(false);
-      router.replace("/");
+      // Force a fresh request so the deleted session cookie is used and the
+      // public landing page is rendered without any cached dashboard state.
+      window.location.replace("/");
     } catch (error) {
       setLogoutError(getApiErrorMessage(error, "Could not sign out. Please try again."));
     } finally {

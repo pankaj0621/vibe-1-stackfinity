@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/topbar";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -11,6 +11,9 @@ import { useLiveRefresh } from "@/lib/hooks/use-live-refresh";
 import { VehicleStatus } from "@/config/transit";
 import { LiveFleetStatus, SessionUser } from "@/types/domain.types";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
+import { getRoleHome } from "@/lib/auth/role-home";
+import { consumeAuthSuccessToast } from "@/lib/auth/pending-auth-toast";
+import { useToast } from "@/components/ui/toast";
 
 export function DashboardShell({
   children,
@@ -28,8 +31,14 @@ export function DashboardShell({
 
 function DashboardShellContent({ children }: { children: React.ReactNode }) {
   const currentUser = useDashboardUser();
+  const { showToast } = useToast();
   const [totoStatus, setTotoStatus] = useState<VehicleStatus>("free");
   const [statusError, setStatusError] = useState("");
+
+  useEffect(() => {
+    const pendingToast = consumeAuthSuccessToast(getRoleHome(currentUser.role));
+    if (pendingToast) showToast(pendingToast);
+  }, [currentUser.role, showToast]);
 
   useLiveRefresh(async () => {
     try {

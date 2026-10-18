@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/toast";
 import { SessionUser } from "@/types/domain.types";
 import { fetchApi, getApiErrorMessage } from "@/lib/api/client";
 import { getRoleHome } from "@/lib/auth/role-home";
+import { queueAuthSuccessToast } from "@/lib/auth/pending-auth-toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,12 +69,12 @@ export default function LoginPage() {
         }),
       }, "sign in");
       if (data.success && data.data) {
-        showToast({
+        const destination = getRoleHome(data.data.role);
+        queueAuthSuccessToast({
           title: "Signed In",
           message: `Welcome, ${data.data.name}! Verified role: ${data.data.role.toUpperCase()}`,
-          tone: "teal",
-        });
-        router.replace(getRoleHome(data.data.role));
+        }, destination);
+        router.replace(destination);
       }
     } catch (error) {
       showToast({
@@ -103,12 +104,12 @@ export default function LoginPage() {
         }),
       }, "create your account");
       if (data.success && data.data) {
-        showToast({
+        const destination = getRoleHome(data.data.role);
+        queueAuthSuccessToast({
           title: "Account Created",
           message: `Welcome to Lawazia, ${data.data.name}! You are registered as ${data.data.role.toUpperCase()}.`,
-          tone: "teal",
-        });
-        router.replace(getRoleHome(data.data.role));
+        }, destination);
+        router.replace(destination);
       }
     } catch (error) {
       showToast({
