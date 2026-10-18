@@ -104,7 +104,7 @@ export function TopBar({ currentUser }: TopBarProps) {
     try {
       await fetchApi("/api/auth/logout", { method: "POST" }, "sign out");
       setAccountMenuOpen(false);
-      router.replace("/login");
+      router.replace("/");
     } catch (error) {
       setLogoutError(getApiErrorMessage(error, "Could not sign out. Please try again."));
     } finally {
