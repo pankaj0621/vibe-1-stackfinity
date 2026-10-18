@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   title: "Lawazia — One Toto. Three Stops. Zero Confusion.",
   description:
     "Campus Transit Mobility System for a single e-rickshaw serving College, Station, and Office. Single-trip booking, clash-safe reservation, and verified rider dispatch.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({
